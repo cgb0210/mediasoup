@@ -398,7 +398,7 @@ class Server {
                         payloadType: pubData.video.payloadType,
                         mid: pubData.video.mid,
                         rtx: {
-                          ssrc: pubData.video.payloadType,
+                          ssrc: pubData.video.rtx.ssrc,
                           payloadType: pubData.video.rtx.payloadType,
                         }
                       },
