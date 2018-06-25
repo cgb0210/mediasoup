@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+</head>
+
+<body>
+    <button id="start">Start</button>
+    <button id="pub">Pub</button>
+    <button id="unpub">Unpub</button>
+    <button id="sub1">Sub1</button>
+    <button id="unsub1">Unsub1</button>
+    <button id="sub2">Sub2</button>
+    <button id="unsub2">Unsub2</button>
+    </br>
+
+    <video id="localVideo" autoplay muted width="400px" height="300px" style="background-color:  gray;"></video>
+    <video id="remoteVideo1" autoplay width="400px" height="300px" style="background-color:  gray;"></video>
+    <video id="remoteVideo2" autoplay width="400px" height="300px" style="background-color:  gray;"></video>
+
+    <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+    <script>  
+        var start = document.getElementById("start");
+        var pub = document.getElementById("pub");
+        var unpub = document.getElementById("unpub");
+        var sub1 = document.getElementById("sub1");
+        var unsub1 = document.getElementById("unsub1");
+        var sub2 = document.getElementById("sub2");
+        var unsub2 = document.getElementById("unsub2");
+        var localVideo = document.getElementById("localVideo");
+        var remoteVideo1 = document.getElementById("remoteVideo1");
+        var remoteVideo2 = document.getElementById("remoteVideo2");
+        var pc1;
+        var pc2;
+        var pc3;
+        var localStream;
+
+        start.disabled = false;
+        pub.disabled = true;
+        unpub.disabled = true;
+        sub1.disabled = true;
+        unsub1.disabled = true;
+        sub2.disabled = true;
+        unsub2.disabled = true;
+
+        // var socket = new WebSocket('ws://192.168.199.110:5012');
+        // var socket = new WebSocket('ws://100.100.81.209:5012');
+        var socket = new WebSocket('ws://123.59.184.112:5012');
+
+        socket.addEventListener('open', function (event) {
+            console.log('websocket open');
+        });
+
+        socket.addEventListener('message', function (event) {
+            console.log('Message from server', event.data);
+            var data = JSON.parse(event.data)
+            if (data.op == 'pub') {
+                pc1.setRemoteDescription(data);
+            }
+            if (data.op == 'sub1') {
+                pc2.setRemoteDescription(data);
+            }
+            if (data.op == 'sub2') {
+                pc3.setRemoteDescription(data);
+            }
+        });
+
+        start.onclick = function (evt) {
+            navigator.mediaDevices.getUserMedia({
+                video: true
+            })
+                .then(
+                    function (stream) {
+                        localVideo.srcObject = stream;
+                        localStream = stream;
+
+                        start.disabled = true;
+                        pub.disabled = false;
+                        unpub.disabled = true;
+                        sub1.disabled = true;
+                        unsub1.disabled = true;
+                        sub2.disabled = true;
+                        unsub2.disabled = true;
+                    }
+                )
+                .catch(function (e) {
+                    alert('getUserMedia error');
+                });
+            return false;
+        };
+
+        pub.onclick = function (evt) {
+            var servers = {
+                bundlePolicy: 'max-bundle',
+                rtcpMuxPolicy: 'require',
+            };
+
+            pc1 = new RTCPeerConnection(servers);
+
+            pc1.onicecandidate = function (e) {
+                if (e) {
+                    console.log("pc1 candidate", e.candidate);
+                }
+            };
+
+            localStream.getTracks().forEach(
+                function (track) {
+                    pc1.addTrack(
+                        track,
+                        localStream
+                    );
+                }
+            );
+
+            pc1.createOffer({
+                offerToReceiveVideo: 0
+            }).then(
+                function (desc) {
+                    console.log("pc1 sdp", console.log(JSON.stringify(desc)));
+                    pc1.setLocalDescription(desc);
+                    socket.send(JSON.stringify({ type: 'pub', data: desc }));
+                },
+                function (error) {
+                    alert('createOffer error');
+                }
+            );
+
+            start.disabled = true;
+            pub.disabled = true;
+            unpub.disabled = false;
+            sub1.disabled = false;
+            unsub1.disabled = true;
+            sub2.disabled = false;
+            unsub2.disabled = true;
+            return false;
+        };
+
+        unpub.onclick = function (evt) {
+            pc1.close();
+            pc1 = null;
+            start.disabled = true;
+            pub.disabled = false;
+            unpub.disabled = true;
+            sub1.disabled = true;
+            unsub1.disabled = true;
+            sub2.disabled = true;
+            unsub2.disabled = true;
+            socket.send(JSON.stringify({ type: 'unpub' }));
+            return false;
+        };
+
+        sub1.onclick = function (evt) {
+            var servers = {
+                bundlePolicy: 'max-bundle',
+                rtcpMuxPolicy: 'require',
+            };
+
+            pc2 = new RTCPeerConnection(servers);
+
+            pc2.onicecandidate = function (e) {
+                console.log("pc2 candidate", e.candidate);
+            };
+
+            pc2.ontrack = function (e) {
+                if (remoteVideo1.srcObject !== e.streams[0]) {
+                    remoteVideo1.srcObject = e.streams[0];
+                }
+            }
+
+            pc2.createOffer({
+                offerToReceiveVideo: 1
+            }).then(
+                function (desc) {
+                    console.log("pc2 sdp", console.log(JSON.stringify(desc)));
+                    // desc.sdp = desc.sdp.replace(/100/g, '111');
+                    // desc.sdp = desc.sdp.replace(/101/g, '112');
+                    pc2.setLocalDescription(desc);
+                    socket.send(JSON.stringify({ type: 'sub1', data: desc }));
+                },
+                function (error) {
+                    alert('createOffer error');
+                }
+            );
+
+            start.disabled = true;
+            pub.disabled = true;
+            unpub.disabled = false;
+            sub1.disabled = true;
+            unsub1.disabled = false;
+            return false;
+        };
+
+        unsub1.onclick = function (evt) {
+            pc2.close();
+            pc2 = null;
+            start.disabled = true;
+            pub.disabled = true;
+            unpub.disabled = false;
+            sub1.disabled = false;
+            unsub1.disabled = true;
+
+            socket.send(JSON.stringify({ type: 'unsub1' }));
+            return false;
+        };
+
+        sub2.onclick = function (evt) {
+            var servers = {
+                bundlePolicy: 'max-bundle',
+                rtcpMuxPolicy: 'require',
+            };
+
+            pc3 = new RTCPeerConnection(servers);
+
+            pc3.onicecandidate = function (e) {
+                console.log("pc3 candidate", e.candidate);
+            };
+
+            pc3.ontrack = function (e) {
+                if (remoteVideo2.srcObject !== e.streams[0]) {
+                    remoteVideo2.srcObject = e.streams[0];
+                }
+            }
+
+            pc3.createOffer({
+                offerToReceiveVideo: 1
+            }).then(
+                function (desc) {
+                    console.log("pc3 sdp", console.log(JSON.stringify(desc)));
+                    // desc.sdp = desc.sdp.replace(/100/g, '113');
+                    // desc.sdp = desc.sdp.replace(/101/g, '114');
+                    pc3.setLocalDescription(desc);
+                    socket.send(JSON.stringify({ type: 'sub2', data: desc }));
+                },
+                function (error) {
+                    alert('createOffer error');
+                }
+            );
+
+            start.disabled = true;
+            pub.disabled = true;
+            unpub.disabled = false;
+            sub2.disabled = true;
+            unsub2.disabled = false;
+            return false;
+        };
+
+        unsub2.onclick = function (evt) {
+            pc3.close();
+            pc3 = null;
+            start.disabled = true;
+            pub.disabled = true;
+            unpub.disabled = false;
+            sub2.disabled = false;
+            unsub2.disabled = true;
+
+            socket.send(JSON.stringify({ type: 'unsub2' }));
+            return false;
+        };
+    </script>
+</body>
+
+</html>
