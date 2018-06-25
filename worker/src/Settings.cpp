@@ -45,6 +45,8 @@ void Settings::SetConfiguration(int argc, char* argv[])
 
 	/* Set default configuration. */
 
+	SetRtcIPs(AF_INET);
+	SetRtcIPs(AF_INET6);
 	SetDefaultRtcIP(AF_INET);
 	SetDefaultRtcIP(AF_INET6);
 
@@ -217,6 +219,21 @@ void Settings::PrintConfiguration()
 	  "  logLevel            : \"%s\"",
 	  Settings::logLevel2String[Settings::configuration.logLevel].c_str());
 	MS_DEBUG_TAG(info, "  logTags             : \"%s\"", logTagsStream.str().c_str());
+
+	for (auto it = Settings::configuration.rtcIPv4s.begin();
+	     it != Settings::configuration.rtcIPv4s.end();
+	     it++)
+	{
+		MS_DEBUG_TAG(info, "  rtcIPv4s            : \"%s\"", it->first.c_str());
+	}
+
+	for (auto it = Settings::configuration.rtcIPv6s.begin();
+	     it != Settings::configuration.rtcIPv6s.end();
+	     it++)
+	{
+		MS_DEBUG_TAG(info, "  rtcIPv6s            : \"%s\"", it->first.c_str());
+	}
+
 	if (Settings::configuration.hasIPv4)
 	{
 		MS_DEBUG_TAG(info, "  rtcIPv4             : \"%s\"", Settings::configuration.rtcIPv4.c_str());
@@ -316,6 +333,60 @@ void Settings::HandleRequest(Channel::Request* request)
 			request->Reject("unknown method");
 		}
 	}
+}
+
+void Settings::SetRtcIPs(int requestedFamily)
+{
+	MS_TRACE();
+
+	int err;
+	uv_interface_address_t* addresses;
+	int numAddresses;
+	int bindErrno;
+
+	err = uv_interface_addresses(&addresses, &numAddresses);
+	if (err != 0)
+		MS_ABORT("uv_interface_addresses() failed: %s", uv_strerror(err));
+
+	for (int i{ 0 }; i < numAddresses; ++i)
+	{
+		uv_interface_address_t address = addresses[i];
+
+		// Ignore internal addresses.
+		if (address.is_internal != 0)
+			continue;
+
+		int family;
+		uint16_t port;
+		std::string ip;
+
+		Utils::IP::GetAddressInfo(
+		  reinterpret_cast<struct sockaddr*>(&address.address.address4), &family, ip, &port);
+
+		if (family != requestedFamily)
+			continue;
+
+		switch (family)
+		{
+			case AF_INET:
+				// Check if it is bindable.
+				if (!isBindableIp(ip, AF_INET, &bindErrno))
+					continue;
+
+				Settings::configuration.rtcIPv4s[ip] = true;
+				break;
+
+			case AF_INET6:
+				// Check if it is bindable.
+				if (!isBindableIp(ip, AF_INET6, &bindErrno))
+					continue;
+
+				Settings::configuration.rtcIPv6s[ip] = true;
+				break;
+		}
+	}
+
+	uv_free_interface_addresses(addresses, numAddresses);
 }
 
 void Settings::SetDefaultRtcIP(int requestedFamily)

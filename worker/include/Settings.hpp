@@ -30,6 +30,8 @@ public:
 	{
 		LogLevel logLevel{ LogLevel::LOG_DEBUG };
 		struct LogTags logTags;
+		std::map<std::string, int> rtcIPv4s;
+		std::map<std::string, int> rtcIPv6s;
 		std::string rtcIPv4;
 		std::string rtcIPv6;
 		std::string rtcAnnouncedIPv4;
@@ -51,6 +53,7 @@ public:
 	static void HandleRequest(Channel::Request* request);
 
 private:
+	static void SetRtcIPs(int requestedFamily);
 	static void SetDefaultRtcIP(int requestedFamily);
 	static void SetLogLevel(std::string& level);
 	static void SetRtcIPv4(const std::string& ip);

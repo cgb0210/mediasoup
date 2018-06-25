@@ -4,6 +4,7 @@
 #include "common.hpp"
 #include "handles/UdpSocket.hpp"
 #include <uv.h>
+#include <map>
 #include <string>
 #include <unordered_map>
 
@@ -26,9 +27,12 @@ namespace RTC
 		static void ClassInit();
 
 	private:
+		static uv_udp_t* GetRandomPort(int addressFamily, std::string ip);
 		static uv_udp_t* GetRandomPort(int addressFamily);
 
 	private:
+		static std::map<std::string, struct sockaddr_storage> sockaddrStorageIPv4s;
+		static std::map<std::string, struct sockaddr_storage> sockaddrStorageIPv6s;
 		static struct sockaddr_storage sockaddrStorageIPv4;
 		static struct sockaddr_storage sockaddrStorageIPv6;
 		static uint16_t minPort;
@@ -37,6 +41,7 @@ namespace RTC
 		static std::unordered_map<uint16_t, bool> availableIPv6Ports;
 
 	public:
+		UdpSocket(Listener* listener, int addressFamily, std::string ip);
 		UdpSocket(Listener* listener, int addressFamily);
 		UdpSocket(Listener* listener, const std::string& ip);
 
