@@ -418,6 +418,7 @@ namespace RTC
 		// ICE connection states.
 		static const Json::StaticString JsonStringCompleted{ "completed" };
 		static const Json::StaticString JsonStringDisconnected{ "disconnected" };
+		static const Json::StaticString JsonStringLastStunTimestamp{ "lastStunTimestamp" };
 		// Available send bandwidth.
 		static const Json::StaticString JsonStringLocalAvailableSendBw{ "localAvailableSendBw" };
 		static const Json::StaticString JsonStringLocalAvailableSendBwMaxValue{ "maxBitrate" };
@@ -432,6 +433,8 @@ namespace RTC
 		json[JsonStringType]      = type;
 		json[JsonStringTimestamp] = Json::UInt64{ DepLibUV::GetTime() };
 		json[JsonStringId]        = Json::UInt{ this->transportId };
+
+		json[JsonStringLastStunTimestamp] = Json::UInt64{ this->lastStunTimestamp };
 
 		if (this->selectedTuple != nullptr)
 		{
@@ -807,6 +810,12 @@ namespace RTC
 
 		// Pass it to the IceServer.
 		this->iceServer->ProcessStunMessage(msg, tuple);
+
+		if (this->iceServer->GetState() == IceServer::IceState::COMPLETED)
+		{
+			uint64_t now            = time(0);
+			this->lastStunTimestamp = now;
+		}
 
 		delete msg;
 	}
