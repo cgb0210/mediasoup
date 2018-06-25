@@ -125,12 +125,27 @@ namespace RTC
 		return json;
 	}
 
-	void PlainRtpTransport::SendRtpPacket(RTC::RtpPacket* packet)
+	void PlainRtpTransport::SendRtpPacket(RTC::RtpPacket* packet, RTC::Consumer* consumer)
 	{
 		MS_TRACE();
 
 		if (!IsConnected())
 			return;
+
+		auto payloadType = packet->GetPayloadType();
+
+		if (payloadType == consumer->pubAudioCodec && payloadType != consumer->subAudioCodec)
+		{
+			packet->SetPayloadType(consumer->subAudioCodec);
+		}
+		else if (payloadType == consumer->pubVideoCodec && payloadType != consumer->subVideoCodec)
+		{
+			packet->SetPayloadType(consumer->subVideoCodec);
+		}
+		else if (payloadType == consumer->pubRtxCodec && payloadType != consumer->subRtxCodec)
+		{
+			packet->SetPayloadType(consumer->subRtxCodec);
+		}
 
 		const uint8_t* data = packet->GetData();
 		size_t len          = packet->GetSize();
@@ -140,6 +155,7 @@ namespace RTC
 			this->mirrorTuple->Send(data, len);
 
 		this->tuple->Send(data, len);
+		packet->SetPayloadType(payloadType);
 	}
 
 	void PlainRtpTransport::SendRtcpPacket(RTC::RTCP::Packet* packet)

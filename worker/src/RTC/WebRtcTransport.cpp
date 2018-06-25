@@ -594,7 +594,7 @@ namespace RTC
 		MS_DEBUG_DEV("Transport ICE ufrag&pwd changed [transportId:%" PRIu32 "]", this->transportId);
 	}
 
-	void WebRtcTransport::SendRtpPacket(RTC::RtpPacket* packet)
+	void WebRtcTransport::SendRtpPacket(RTC::RtpPacket* packet, RTC::Consumer* consumer)
 	{
 		MS_TRACE();
 
@@ -609,6 +609,21 @@ namespace RTC
 			return;
 		}
 
+		auto payloadType = packet->GetPayloadType();
+
+		if (payloadType == consumer->pubAudioCodec && payloadType != consumer->subAudioCodec)
+		{
+			packet->SetPayloadType(consumer->subAudioCodec);
+		}
+		else if (payloadType == consumer->pubVideoCodec && payloadType != consumer->subVideoCodec)
+		{
+			packet->SetPayloadType(consumer->subVideoCodec);
+		}
+		else if (payloadType == consumer->pubRtxCodec && payloadType != consumer->subRtxCodec)
+		{
+			packet->SetPayloadType(consumer->subRtxCodec);
+		}
+
 		const uint8_t* data = packet->GetData();
 		size_t len          = packet->GetSize();
 
@@ -620,6 +635,7 @@ namespace RTC
 			return;
 
 		this->selectedTuple->Send(data, len);
+		packet->SetPayloadType(payloadType);
 	}
 
 	void WebRtcTransport::SendRtcpPacket(RTC::RTCP::Packet* packet)

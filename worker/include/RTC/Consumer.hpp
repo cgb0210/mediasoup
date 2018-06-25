@@ -91,6 +91,14 @@ namespace RTC
 		RTC::Media::Kind kind;
 		uint32_t sourceProducerId{ 0 };
 
+	public:
+		uint8_t pubAudioCodec{ 0 };
+		uint8_t subAudioCodec{ 0 };
+		uint8_t pubVideoCodec{ 0 };
+		uint8_t subVideoCodec{ 0 };
+		uint8_t pubRtxCodec{ 0 };
+		uint8_t subRtxCodec{ 0 };
+
 	private:
 		// Passed by argument.
 		Channel::Notifier* notifier{ nullptr };

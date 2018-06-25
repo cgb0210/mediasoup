@@ -467,6 +467,12 @@ namespace RTC
 			case Channel::Request::MethodId::ROUTER_CREATE_CONSUMER:
 			{
 				static const Json::StaticString JsonStringKind{ "kind" };
+				static const Json::StaticString JsonStringPubAudioCodec{ "pubAudioCodec" };
+				static const Json::StaticString JsonStringSubAudioCodec{ "subAudioCodec" };
+				static const Json::StaticString JsonStringPubVideoCodec{ "pubVideoCodec" };
+				static const Json::StaticString JsonStringSubVideoCodec{ "subVideoCodec" };
+				static const Json::StaticString JsonStringPubRtxCodec{ "pubRtxCodec" };
+				static const Json::StaticString JsonStringSubRtxCodec{ "subRtxCodec" };
 
 				uint32_t consumerId;
 
@@ -522,6 +528,64 @@ namespace RTC
 				}
 
 				auto* consumer = new RTC::Consumer(this->notifier, consumerId, kind, producer->producerId);
+
+				std::string audioStr = "audio";
+				std::string videoStr = "video";
+
+				if (kindStr.compare(audioStr) == 0)
+				{
+					if (!request->data[JsonStringPubAudioCodec].isUInt())
+					{
+						request->Reject("Request has invalid data.pubAudioCodec");
+
+						return;
+					}
+
+					if (!request->data[JsonStringSubAudioCodec].isUInt())
+					{
+						request->Reject("Request has invalid data.subAudioCodec");
+
+						return;
+					}
+
+					consumer->pubAudioCodec = request->data[JsonStringPubAudioCodec].asUInt();
+					consumer->subAudioCodec = request->data[JsonStringSubAudioCodec].asUInt();
+				}
+				else if (kindStr.compare(videoStr) == 0)
+				{
+					if (!request->data[JsonStringPubVideoCodec].isUInt())
+					{
+						request->Reject("Request has invalid data.pubVideoCodec");
+
+						return;
+					}
+
+					if (!request->data[JsonStringSubVideoCodec].isUInt())
+					{
+						request->Reject("Request has invalid data.subVideoCodec");
+
+						return;
+					}
+
+					if (!request->data[JsonStringPubRtxCodec].isUInt())
+					{
+						request->Reject("Request has invalid data.pubRtxCodec");
+
+						return;
+					}
+
+					if (!request->data[JsonStringSubRtxCodec].isUInt())
+					{
+						request->Reject("Request has invalid data.subRtxCodec");
+
+						return;
+					}
+
+					consumer->pubVideoCodec = request->data[JsonStringPubVideoCodec].asUInt();
+					consumer->subVideoCodec = request->data[JsonStringSubVideoCodec].asUInt();
+					consumer->pubRtxCodec   = request->data[JsonStringPubRtxCodec].asUInt();
+					consumer->subRtxCodec   = request->data[JsonStringSubRtxCodec].asUInt();
+				}
 
 				// If the Producer is paused tell it to the new Consumer.
 				if (producer->IsPaused())

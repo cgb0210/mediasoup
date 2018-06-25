@@ -78,8 +78,8 @@ namespace RTC
 		virtual Json::Value GetStats() const = 0;
 		void HandleProducer(RTC::Producer* producer);
 		void HandleConsumer(RTC::Consumer* consumer);
-		virtual void SendRtpPacket(RTC::RtpPacket* packet)     = 0;
-		virtual void SendRtcpPacket(RTC::RTCP::Packet* packet) = 0;
+		virtual void SendRtpPacket(RTC::RtpPacket* packet, RTC::Consumer* consumer) = 0;
+		virtual void SendRtcpPacket(RTC::RTCP::Packet* packet)                      = 0;
 		void StartMirroring(MirroringOptions& options);
 		void StopMirroring();
 

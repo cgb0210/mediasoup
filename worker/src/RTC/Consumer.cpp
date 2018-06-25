@@ -430,16 +430,16 @@ namespace RTC
 			return;
 
 		// Map the payload type.
-		auto payloadType = packet->GetPayloadType();
+		// auto payloadType = packet->GetPayloadType();
 
 		// NOTE: This may happen if this Consumer supports just some codecs of those
 		// in the corresponding Producer.
-		if (this->supportedCodecPayloadTypes.find(payloadType) == this->supportedCodecPayloadTypes.end())
-		{
-			MS_DEBUG_DEV("payload type not supported [payloadType:%" PRIu8 "]", payloadType);
+		// if (this->supportedCodecPayloadTypes.find(payloadType) == this->supportedCodecPayloadTypes.end())
+		// {
+		// 	MS_DEBUG_DEV("payload type not supported [payloadType:%" PRIu8 "]", payloadType);
 
-			return;
-		}
+		// 	return;
+		// }
 
 		// Check whether this is the key frame we are waiting for in order to update the effective
 		// profile.
@@ -556,7 +556,7 @@ namespace RTC
 		if (this->rtpStream->ReceivePacket(packet))
 		{
 			// Send the packet.
-			this->transport->SendRtpPacket(packet);
+			this->transport->SendRtpPacket(packet, this);
 
 			// Retransmit the RTP packet if probing.
 			if (IsProbing())
@@ -874,7 +874,7 @@ namespace RTC
 		this->retransmittedCounter.Update(rtxPacket);
 
 		// Send the packet.
-		this->transport->SendRtpPacket(rtxPacket);
+		this->transport->SendRtpPacket(rtxPacket, this);
 
 		// Delete the RTX RtpPacket if it was created.
 		if (rtxPacket != packet)

@@ -55,7 +55,7 @@ namespace RTC
 		  RTC::DtlsTransport::Fingerprint& fingerprint, RTC::DtlsTransport::Role role);
 		void SetMaxBitrate(uint32_t bitrate);
 		void ChangeUfragPwd(std::string& usernameFragment, std::string& password);
-		void SendRtpPacket(RTC::RtpPacket* packet) override;
+		void SendRtpPacket(RTC::RtpPacket* packet, RTC::Consumer* consumer) override;
 		void SendRtcpPacket(RTC::RTCP::Packet* packet) override;
 
 	private:
