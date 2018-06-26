@@ -17,7 +17,4 @@
 
 Vagrantfile
 .vagrant/
-node-v8.11.3-linux-x64.tar
-node-v8.11.3-linux-x64/
-node_modules/
 .Ds_Store
