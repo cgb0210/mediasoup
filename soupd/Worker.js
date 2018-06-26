@@ -1,10 +1,13 @@
 'use strict';
 
 const spawn = require('child_process').spawn;
+const Logger = require('./Logger');
+
+const logger = new Logger();
 
 class Worker {
-  constructor() {
-    const workerPath = './worker/out/Release/mediasoup-worker';
+  constructor(rtcMinPort, rtcMaxPort) {
+    const workerPath = '../worker/out/Release/mediasoup-worker';
     const spawnArgs = ['wdiawvur#1',
       '--logLevel=debug',
       '--logTag=info',
@@ -17,8 +20,8 @@ class Worker {
       '--logTag=rtx',
       '--rtcIPv4=true',
       '--rtcIPv6=true',
-      '--rtcMinPort=10000',
-      '--rtcMaxPort=20000',
+      '--rtcMinPort=' + rtcMinPort,
+      '--rtcMaxPort=' + rtcMaxPort,
     ]
 
     const spawnOptions = {
@@ -31,7 +34,7 @@ class Worker {
     this.child.stdout.on('data', (buffer) => {
       for (const line of buffer.toString('utf8').split('\n')) {
         if (line) {
-          console.debug(`mediasoup-worker's stdout: ${line}`);
+          logger.debug(`mediasoup-worker's stdout:`, `${line}`);
         }
       }
     });
@@ -39,17 +42,17 @@ class Worker {
     this.child.stderr.on('data', (buffer) => {
       for (const line of buffer.toString('utf8').split('\n')) {
         if (line) {
-          console.error(`mediasoup-worker's stderr: ${line}`);
+          logger.error(`mediasoup-worker's stderr:`, `${line}`);
         }
       }
     });
 
     this.child.on('exit', (code, signal) => {
-      console.error('child process exited [code:%s, signal:%s]', code, signal);
+      logger.error('child process exited code & signal:', code + `` + signal);
     });
 
     this.child.on('error', (error) => {
-      console.error('child process error [error:%s]', error);
+      logger.error('child process error:', error);
     });
   }
 }

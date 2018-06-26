@@ -5,18 +5,21 @@ const Worker = require('./Worker')
 const Channel = require('./Channel')
 const utils = require('./utils');
 const uuidv1 = require('uuid/v1');
+const Logger = require('./Logger');
+const config = require(process.argv[2]);
 
+const logger = new Logger();
 const CHANNEL_FD = 3;
-const MaxBitrate = 1200000;
-const StatInternal = 3;
-const StunInternal = 10;
+const MaxBitrate = config.maxbitrate;
+const StatInternal = config.statinterval;
+const StunInternal = config.stuninterval;
 process.env.MEDIASOUP_CHANNEL_FD = String(CHANNEL_FD);
 
 let id = uuidv1();
 let rooms = {};
 let transform = {};
 
-let worker = new Worker()
+let worker = new Worker(config.minport, config.maxport)
 let channel = new Channel(worker.child.stdio[CHANNEL_FD], notify)
 
 function Socket() {
@@ -60,13 +63,13 @@ Socket.prototype.sendmsg = function (key, data) {
     var msg = key + '=' + value;
     try {
         this.instance.send(msg);
-        console.info('send', msg);
+        logger.info('send', msg);
     } catch (err) {
-        console.info(err);
+        logger.error(err);
     }
 
-    // console.info("rooms", rooms);
-    // console.info("transform", transform);
+    // logger.info("rooms", rooms);
+    // logger.info("transform", transform);
 }
 Socket.prototype.reconnect = function () {
     this.instance.removeAllListeners();
@@ -85,13 +88,13 @@ ws.onopen = function () {
     this.sendmsg('handshake', req);
 }
 ws.onerror = function (err) {
-    console.info("onerror", err);
+    logger.info("onerror", err);
 }
 ws.onclose = function (code, reason) {
-    console.info("onclose", code, reason);
+    logger.info("onclose code & error", code + ' ' + reason);
 }
 ws.onmessage = function (data) {
-    console.info("recv", data);
+    logger.info('recv', data);
     if (typeof data == 'string') {
         var index = data.indexOf('=');
         if (index > 0 && index < data.length - 1) {
@@ -101,7 +104,7 @@ ws.onmessage = function (data) {
                 var data = JSON.parse(value);
                 procmsg(key, data);
             } catch (err) {
-                console.info(err);
+                logger.error(err);
             }
         }
     }
@@ -226,7 +229,7 @@ function notify(msg) {
 
 async function pub(msg) {
     let pubData = utils.parseSdp(msg.sdp);
-    console.info(JSON.stringify(pubData));
+    logger.info('pubData', JSON.stringify(pubData));
     msg.sdp = "";
 
     let routerId = 0;
@@ -476,7 +479,7 @@ async function pub(msg) {
         if (hasVideo) {
             channel.request("producer.getStats", videoIntr, {});
         }
-    }, StatInternal * 1000);
+    }, StatInternal);
 
     rooms[msg.roomiid].streams[msg.streamid] = {
         audioProducerId: audioProducerId,
@@ -492,7 +495,7 @@ async function pub(msg) {
 
 async function sub(msg) {
     let subData = utils.parseSdp(msg.sdp);
-    console.log(JSON.stringify(subData));
+    logger.info('subData', JSON.stringify(subData));
     msg.sdp = "";
 
     let transportId = 0;
@@ -737,7 +740,7 @@ async function sub(msg) {
         if (hasVideo) {
             channel.request("producer.getStats", videoIntr, {});
         }
-    }, StatInternal * 1000);
+    }, StatInternal);
 
     rooms[msg.roomiid].streams[msg.streamid].conns[msg.connid] = {
         audioConsumerId: audioConsumerId,

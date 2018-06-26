@@ -1,6 +1,9 @@
 'use strict';
 
 const netstring = require('netstring');
+const Logger = require('./Logger');
+
+const logger = new Logger();
 const REQUEST_TIMEOUT = 5000;
 
 class Channel {
@@ -30,26 +33,26 @@ class Channel {
           // 123 = '{' (a Channel JSON messsage).
           case 123:
             this.processMessage(JSON.parse(nsPayload));
-            console.log('<<---', nsPayload.toString());
+            logger.info('<<---', nsPayload.toString());
             break;
 
           // 68 = 'D' (a debug log).
           case 68:
-            console.debug(nsPayload.toString('utf8', 0));
+            logger.debug(`channel`, nsPayload.toString('utf8', 1));
             break;
 
           // 87 = 'W' (a warning log).
           case 87:
-            console.warn(nsPayload.toString('utf8', 0));
+            logger.warn(`channel`, nsPayload.toString('utf8', 1));
             break;
 
           // 69 = 'E' (an error log).
           case 69:
-            console.error(nsPayload.toString('utf8', 0));
+            logger.error(`channel`, nsPayload.toString('utf8', 1));
             break;
 
           default:
-            console.error('unexpected data: %s', nsPayload.toString('utf8'));
+            logger.error('channel unexpected data:', nsPayload.toString('utf8'));
         }
 
         // Remove the read payload from the recvBuffer.
@@ -58,11 +61,11 @@ class Channel {
     });
 
     this.socket.on('end', () => {
-      console.debug('channel ended by the other side');
+      logger.error('channel ended by the other side');
     });
 
     this.socket.on('error', (error) => {
-      console.error('channel error: %s', error);
+      logger.error('channel error:', error);
     });
   }
 
@@ -75,7 +78,7 @@ class Channel {
 
     try {
       this.socket.write(ns);
-      console.log('--->>', ns.toString());
+      logger.info('--->>', ns.toString());
     } catch (error) {
       return Promise.reject(error);
     }
@@ -122,15 +125,15 @@ class Channel {
 
   processMessage(msg) {
     if (msg.id) {
-      // if (msg.accepted)
-      //     console.debug('request succeeded [id:%s]', msg.id);
-      // else
-      //     console.error('request failed [id:%s, reason:"%s"]', msg.id, msg.reason);
+      if (msg.accepted)
+        logger.info('request succeeded id:', msg.id);
+      else
+        logger.error('request failed id & reason:', msg.id + ` ` + msg.reason);
 
       const sent = this.pendingSent.get(msg.id);
 
       if (!sent) {
-        console.error('received Response does not match any sent Request');
+        logger.error('received Response does not match any sent Request');
         return;
       }
 
@@ -141,7 +144,7 @@ class Channel {
     } else if (msg.targetId && msg.event) {
       this.notify(msg);
     } else {
-      console.error('received message is not a Response nor a Notification');
+      logger.error('received message is not a Response nor a Notification');
     }
   }
 }

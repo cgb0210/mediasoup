@@ -2,6 +2,9 @@
 
 const transform = require('sdp-transform');
 const randomNumber = require('random-number');
+const Logger = require('./Logger');
+
+const logger = new Logger();
 
 let sdpTemplate = {
     version: 0,
@@ -247,7 +250,7 @@ let sdpTemplate = {
 
 function parseSdp(sdpStr) {
     let sdp = transform.parse(sdpStr);
-    console.log(JSON.stringify(sdp))
+    logger.info(`sdp-transform`, JSON.stringify(sdp));
     let res = {
         fingerprint: {
             type: '',
