@@ -168,7 +168,7 @@ function procmsg(key, data) {
 
 function notify(msg) {
     if (msg.event == "icestatechange") {
-        if (msg.data.iceState == "completed") {
+        if (msg.data.iceState == "connected") {
             let data = transform[msg.targetId];
             if (data) {
                 let res = {

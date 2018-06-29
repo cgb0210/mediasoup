@@ -811,11 +811,8 @@ namespace RTC
 		// Pass it to the IceServer.
 		this->iceServer->ProcessStunMessage(msg, tuple);
 
-		if (this->iceServer->GetState() == IceServer::IceState::COMPLETED)
-		{
-			uint64_t now            = time(0);
-			this->lastStunTimestamp = now;
-		}
+		uint64_t now            = time(0);
+		this->lastStunTimestamp = now;
 
 		delete msg;
 	}
