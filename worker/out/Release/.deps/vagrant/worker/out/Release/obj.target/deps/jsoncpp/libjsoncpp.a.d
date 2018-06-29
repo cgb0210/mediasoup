@@ -1,0 +1,1 @@
+cmd_/vagrant/worker/out/Release/obj.target/deps/jsoncpp/libjsoncpp.a := rm -f /vagrant/worker/out/Release/obj.target/deps/jsoncpp/libjsoncpp.a && ar crs /vagrant/worker/out/Release/obj.target/deps/jsoncpp/libjsoncpp.a /vagrant/worker/out/Release/obj.target/jsoncpp/deps/jsoncpp/jsoncpp/bundled/jsoncpp.o

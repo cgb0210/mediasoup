@@ -1,0 +1,1 @@
+cmd_/vagrant/worker/out/Release/libopenssl.a := ln -f "/vagrant/worker/out/Release/obj.target/deps/openssl/libopenssl.a" "/vagrant/worker/out/Release/libopenssl.a" 2>/dev/null || (rm -rf "/vagrant/worker/out/Release/libopenssl.a" && cp -af "/vagrant/worker/out/Release/obj.target/deps/openssl/libopenssl.a" "/vagrant/worker/out/Release/libopenssl.a")

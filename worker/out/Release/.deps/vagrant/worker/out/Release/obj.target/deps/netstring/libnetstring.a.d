@@ -1,0 +1,1 @@
+cmd_/vagrant/worker/out/Release/obj.target/deps/netstring/libnetstring.a := rm -f /vagrant/worker/out/Release/obj.target/deps/netstring/libnetstring.a && ar crs /vagrant/worker/out/Release/obj.target/deps/netstring/libnetstring.a /vagrant/worker/out/Release/obj.target/netstring/deps/netstring/netstring-c/netstring.o

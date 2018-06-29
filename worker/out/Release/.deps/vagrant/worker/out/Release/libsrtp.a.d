@@ -1,0 +1,1 @@
+cmd_/vagrant/worker/out/Release/libsrtp.a := ln -f "/vagrant/worker/out/Release/obj.target/deps/libsrtp/libsrtp.a" "/vagrant/worker/out/Release/libsrtp.a" 2>/dev/null || (rm -rf "/vagrant/worker/out/Release/libsrtp.a" && cp -af "/vagrant/worker/out/Release/obj.target/deps/libsrtp/libsrtp.a" "/vagrant/worker/out/Release/libsrtp.a")

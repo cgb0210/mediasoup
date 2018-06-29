@@ -1,0 +1,1 @@
+cmd_/vagrant/worker/out/Release/libnetstring.a := ln -f "/vagrant/worker/out/Release/obj.target/deps/netstring/libnetstring.a" "/vagrant/worker/out/Release/libnetstring.a" 2>/dev/null || (rm -rf "/vagrant/worker/out/Release/libnetstring.a" && cp -af "/vagrant/worker/out/Release/obj.target/deps/netstring/libnetstring.a" "/vagrant/worker/out/Release/libnetstring.a")

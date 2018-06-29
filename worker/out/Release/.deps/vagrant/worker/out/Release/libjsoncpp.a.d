@@ -1,0 +1,1 @@
+cmd_/vagrant/worker/out/Release/libjsoncpp.a := ln -f "/vagrant/worker/out/Release/obj.target/deps/jsoncpp/libjsoncpp.a" "/vagrant/worker/out/Release/libjsoncpp.a" 2>/dev/null || (rm -rf "/vagrant/worker/out/Release/libjsoncpp.a" && cp -af "/vagrant/worker/out/Release/obj.target/deps/jsoncpp/libjsoncpp.a" "/vagrant/worker/out/Release/libjsoncpp.a")
