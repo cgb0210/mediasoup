@@ -378,7 +378,7 @@ async function pub(msg) {
     }
 
     let hasAudio = msg.hasAudio && pubData.audio.ssrc && pubData.audio.payloadType;
-    let hasVideo = msg.hasVideo && pubData.video.ssrc && pubData.video.payloadType && pubData.video.rtx.payloadType && pubData.video.ssrc && pubData.video.rtx.ssrc;
+    let hasVideo = msg.hasVideo && pubData.video.ssrc && pubData.video.payloadType && pubData.video.rtx.ssrc && pubData.video.rtx.payloadType;
 
     if (needCreateRouter) {
         await channel.request("worker.createRouter", routerIntr, {})
@@ -735,10 +735,10 @@ async function sub(msg) {
                 }
             })
         if (hasAudio) {
-            channel.request("producer.getStats", audioIntr, {});
+            channel.request("consumer.getStats", audioIntr, {});
         }
         if (hasVideo) {
-            channel.request("producer.getStats", videoIntr, {});
+            channel.request("consumer.getStats", videoIntr, {});
         }
     }, StatInternal);
 
