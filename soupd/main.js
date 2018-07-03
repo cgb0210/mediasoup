@@ -437,6 +437,8 @@ async function pub(msg) {
         playerid: msg.playerid,
         streamid: msg.streamid,
         sdp: sdp,
+        ip: ip,
+        port: port
     }
 
     let start = new Date().getTime();
@@ -695,7 +697,9 @@ async function sub(msg) {
         playerid: msg.playerid,
         streamid: msg.streamid,
         connid: msg.connid,
-        sdp: sdp
+        sdp: sdp,
+        ip: ip,
+        port: port
     }
 
     let start = new Date().getTime();
