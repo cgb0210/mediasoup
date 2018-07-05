@@ -463,7 +463,19 @@ function encodeSdp(params) {
             media.fmtp = [media.fmtp[0]];
             media.ssrcs = [media.ssrcs[0], media.ssrcs[1], media.ssrcs[2], media.ssrcs[3]];
             delete media.ssrcGroups;
-            delete media.ext;
+
+            if (!params.isChrome) {
+                media.ext = [
+                    {
+                        value: 5,
+                        uri: "urn:ietf:params:rtp-hdrext:toffset"
+                    },
+                    {
+                        value: 4,
+                        uri: "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time"
+                    }
+                ]
+            }
 
             media.rtp[0].payload = params.video.payloadType;
             media.fmtp[0].payload = params.video.payloadType;

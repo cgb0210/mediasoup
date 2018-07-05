@@ -391,6 +391,13 @@ async function pub(msg) {
         ]
 
         videodata.rtpMapping.headerExtensionIds = [[2, 2], [3, 3], [4, 4]];
+    } else {
+        videodata.rtpParameters.headerExtensions = [
+            { uri: 'urn:ietf:params:rtp-hdrext:toffset', id: 5 },
+            { uri: 'http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time', id: 4 }
+        ]
+
+        videodata.rtpMapping.headerExtensionIds = [[5, 2], [4, 3]];
     }
 
     if (needCreateRouter) {
@@ -641,6 +648,7 @@ async function sub(msg) {
     let hasAudio = msg.hasAudio && subData.audio.payloadType;
     let hasVideo = msg.hasVideo && subData.video.payloadType;
     let hasRtx = msg.hasVideo && subData.video.rtx.payloadType && pubData.video.rtx.payloadType;
+    let isChrome = msg.hasVideo && subData.video.rtx.payloadType;
 
     if (hasRtx) {
         enablevideo.rtpParameters.codecs[1] = {
@@ -651,11 +659,18 @@ async function sub(msg) {
             parameters: { apt: subData.video.payloadType }
         }
         enablevideo.rtpParameters.encodings[0].rtx = { ssrc: pubData.video.rtx.ssrc }
+    }
 
+    if (isChrome) {
         enablevideo.rtpParameters.headerExtensions = [
             { uri: 'urn:ietf:params:rtp-hdrext:toffset', id: 2 },
             { uri: 'http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time', id: 3 },
             { uri: 'urn:3gpp:video-orientation', id: 4 }
+        ]
+    } else {
+        enablevideo.rtpParameters.headerExtensions = [
+            { uri: 'urn:ietf:params:rtp-hdrext:toffset', id: 5 },
+            { uri: 'http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time', id: 4 },
         ]
     }
 
@@ -704,7 +719,8 @@ async function sub(msg) {
         isPub: false,
         hasAudio: hasAudio,
         hasVideo: hasVideo,
-        hasRtx: hasRtx
+        hasRtx: hasRtx,
+        isChrome: isChrome
     }
 
     if (hasRtx) {
