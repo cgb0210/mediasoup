@@ -45,8 +45,8 @@
         unsub2.disabled = true;
 
         // var socket = new WebSocket('ws://192.168.199.110:5012');
-        // var socket = new WebSocket('ws://100.100.81.209:5012');
-        var socket = new WebSocket('ws://123.59.184.112:5012');
+        var socket = new WebSocket('ws://100.100.81.208:5012');
+        // var socket = new WebSocket('ws://123.59.184.112:5012');
 
         socket.addEventListener('open', function (event) {
             console.log('websocket open');
@@ -119,7 +119,7 @@
                 function (desc) {
                     console.log("pc1 sdp", console.log(JSON.stringify(desc)));
                     pc1.setLocalDescription(desc);
-                    socket.send(JSON.stringify({ type: 'pub', data: desc }));
+                    socket.send(JSON.stringify({ type: 'pub', data: desc, hasAudio: false, hasVideo: true }));
                 },
                 function (error) {
                     alert('createOffer error');
@@ -176,7 +176,7 @@
                     // desc.sdp = desc.sdp.replace(/100/g, '111');
                     // desc.sdp = desc.sdp.replace(/101/g, '112');
                     pc2.setLocalDescription(desc);
-                    socket.send(JSON.stringify({ type: 'sub1', data: desc }));
+                    socket.send(JSON.stringify({ type: 'sub1', data: desc, hasAudio: false, hasVideo: true }));
                 },
                 function (error) {
                     alert('createOffer error');
@@ -230,7 +230,7 @@
                     // desc.sdp = desc.sdp.replace(/100/g, '113');
                     // desc.sdp = desc.sdp.replace(/101/g, '114');
                     pc3.setLocalDescription(desc);
-                    socket.send(JSON.stringify({ type: 'sub2', data: desc }));
+                    socket.send(JSON.stringify({ type: 'sub2', data: desc, hasAudio: false, hasVideo: true }));
                 },
                 function (error) {
                     alert('createOffer error');

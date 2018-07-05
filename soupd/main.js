@@ -168,17 +168,20 @@ function procmsg(key, data) {
 
 function notify(msg) {
     if (msg.event == "icestatechange") {
-        if (msg.data.iceState == "connected") {
+        if (msg.data.iceState == "connected" || msg.data.iceState == "completed") {
             let data = transform[msg.targetId];
             if (data) {
-                let res = {
-                    roomiid: data.roomiid,
-                    playerid: data.playerid,
-                    streamid: data.streamid,
-                    connid: data.connid,
-                    connected: true,
+                if (!data.iceState) {
+                    let res = {
+                        roomiid: data.roomiid,
+                        playerid: data.playerid,
+                        streamid: data.streamid,
+                        connid: data.connid,
+                        connected: true,
+                    }
+                    ws.sendmsg("webrtc-icestate", res);
+                    data.iceState = "connected";
                 }
-                ws.sendmsg("webrtc-icestate", res);
             }
         }
     }
@@ -353,32 +356,42 @@ async function pub(msg) {
                     payloadType: pubData.video.payloadType,
                     rtcpFeedback: [{ type: 'goog-remb' }, { type: 'ccm', parameter: 'fir' }, { type: 'nack' }, { type: 'nack', parameter: 'pli' }],
                     parameters: { 'packetization-mode': 1 }
-                },
-                {
-                    name: 'rtx',
-                    mimeType: 'video/rtx',
-                    clockRate: 90000,
-                    payloadType: pubData.video.rtx.payloadType,
-                    parameters: { apt: pubData.video.payloadType }
                 }
             ],
-            headerExtensions: [
-                { uri: 'urn:ietf:params:rtp-hdrext:toffset', id: 2 },
-                { uri: 'http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time', id: 3 },
-                { uri: 'urn:3gpp:video-orientation', id: 4 }
-            ],
-            encodings: [{ ssrc: pubData.video.ssrc, rtx: { ssrc: pubData.video.rtx.ssrc } }],
+            headerExtensions: [],
+            encodings: [{ ssrc: pubData.video.ssrc }],
             rtcp: { cname: pubData.cname, reducedSize: true, mux: true }
         },
         rtpMapping: {
-            codecPayloadTypes: [[pubData.video.payloadType, pubData.video.payloadType], [pubData.video.rtx.payloadType, pubData.video.rtx.payloadType]],
-            headerExtensionIds: [[2, 2], [3, 3], [4, 4]]
+            codecPayloadTypes: [[pubData.video.payloadType, pubData.video.payloadType]],
+            headerExtensionIds: []
         },
         paused: false
     }
 
     let hasAudio = msg.hasAudio && pubData.audio.ssrc && pubData.audio.payloadType;
-    let hasVideo = msg.hasVideo && pubData.video.ssrc && pubData.video.payloadType && pubData.video.rtx.ssrc && pubData.video.rtx.payloadType;
+    let hasVideo = msg.hasVideo && pubData.video.ssrc && pubData.video.payloadType;
+    let hasRtx = msg.hasVideo && pubData.video.rtx.ssrc && pubData.video.rtx.payloadType;
+
+    if (hasRtx) {
+        videodata.rtpParameters.codecs[1] = {
+            name: 'rtx',
+            mimeType: 'video/rtx',
+            clockRate: 90000,
+            payloadType: pubData.video.rtx.payloadType,
+            parameters: { apt: pubData.video.payloadType }
+        }
+        videodata.rtpParameters.encodings[0].rtx = { ssrc: pubData.video.rtx.ssrc }
+        videodata.rtpMapping.codecPayloadTypes[1] = [pubData.video.rtx.payloadType, pubData.video.rtx.payloadType];
+
+        videodata.rtpParameters.headerExtensions = [
+            { uri: 'urn:ietf:params:rtp-hdrext:toffset', id: 2 },
+            { uri: 'http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time', id: 3 },
+            { uri: 'urn:3gpp:video-orientation', id: 4 }
+        ]
+
+        videodata.rtpMapping.headerExtensionIds = [[2, 2], [3, 3], [4, 4]];
+    }
 
     if (needCreateRouter) {
         await channel.request("worker.createRouter", routerIntr, {})
@@ -411,11 +424,7 @@ async function pub(msg) {
         video: {
             ssrc: pubData.video.ssrc,
             payloadType: pubData.video.payloadType,
-            mid: pubData.video.mid,
-            rtx: {
-                ssrc: pubData.video.rtx.ssrc,
-                payloadType: pubData.video.rtx.payloadType,
-            }
+            mid: pubData.video.mid
         },
         cname: pubData.cname,
         sessionId: pubData.sessionId,
@@ -423,6 +432,14 @@ async function pub(msg) {
         hasAudio: hasAudio,
         hasVideo: hasVideo
     }
+
+    if (hasRtx) {
+        params.video.rtx = {
+            ssrc: pubData.video.rtx.ssrc,
+            payloadType: pubData.video.rtx.payloadType,
+        }
+    }
+
     let sdp = utils.encodeSdp(params);
     await channel.request("transport.setMaxBitrate", transportIntr, { bitrate: MaxBitrate });
     await channel.request("transport.setRemoteDtlsParameters", transportIntr, dtlsdata);
@@ -612,27 +629,34 @@ async function sub(msg) {
                     payloadType: subData.video.payloadType,
                     rtcpFeedback: [{ type: 'goog-remb' }, { type: 'ccm', parameter: 'fir' }, { type: 'nack' }, { type: 'nack', parameter: 'pli' }],
                     parameters: { 'packetization-mode': 1 }
-                },
-                {
-                    name: 'rtx',
-                    mimeType: 'video/rtx',
-                    clockRate: 90000,
-                    payloadType: subData.video.rtx.payloadType,
-                    parameters: { apt: subData.video.payloadType }
                 }
             ],
-            headerExtensions: [
-                { uri: 'urn:ietf:params:rtp-hdrext:toffset', id: 2 },
-                { uri: 'http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time', id: 3 },
-                { uri: 'urn:3gpp:video-orientation', id: 4 }
-            ],
-            encodings: [{ ssrc: pubData.video.ssrc, rtx: { ssrc: pubData.video.rtx.ssrc } }],
+            headerExtensions: [],
+            encodings: [{ ssrc: pubData.video.ssrc }],
             rtcp: { cname: pubData.cname, reducedSize: true, mux: true }
         }
     }
 
     let hasAudio = msg.hasAudio && subData.audio.payloadType;
-    let hasVideo = msg.hasVideo && subData.video.payloadType && subData.video.rtx.payloadType;
+    let hasVideo = msg.hasVideo && subData.video.payloadType;
+    let hasRtx = msg.hasVideo && subData.video.rtx.payloadType && pubData.video.rtx.payloadType;
+
+    if (hasRtx) {
+        enablevideo.rtpParameters.codecs[1] = {
+            name: 'rtx',
+            mimeType: 'video/rtx',
+            clockRate: 90000,
+            payloadType: subData.video.rtx.payloadType,
+            parameters: { apt: subData.video.payloadType }
+        }
+        enablevideo.rtpParameters.encodings[0].rtx = { ssrc: pubData.video.rtx.ssrc }
+
+        enablevideo.rtpParameters.headerExtensions = [
+            { uri: 'urn:ietf:params:rtp-hdrext:toffset', id: 2 },
+            { uri: 'http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time', id: 3 },
+            { uri: 'urn:3gpp:video-orientation', id: 4 }
+        ]
+    }
 
     if (hasAudio) {
         await channel.request("router.createConsumer", audioIntr, audioData);
@@ -672,10 +696,6 @@ async function sub(msg) {
             streamId: pubData.video.streamId,
             trackId: pubData.video.trackId,
             payloadType: subData.video.payloadType,
-            rtx: {
-                ssrc: pubData.video.rtx.ssrc,
-                payloadType: subData.video.rtx.payloadType,
-            },
             mid: subData.video.mid,
         },
         cname: pubData.cname,
@@ -684,6 +704,14 @@ async function sub(msg) {
         hasAudio: hasAudio,
         hasVideo: hasVideo
     }
+
+    if (hasRtx) {
+        params.video.rtx = {
+            ssrc: pubData.video.rtx.ssrc,
+            payloadType: subData.video.rtx.payloadType,
+        }
+    }
+
     let sdp = utils.encodeSdp(params);
     await channel.request("transport.setRemoteDtlsParameters", transportIntr, dtlsdata);
     if (hasAudio) {

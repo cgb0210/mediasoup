@@ -9,130 +9,6 @@ const CHANNEL_FD = 3;
 const REQUEST_TIMEOUT = 5000;
 process.env.MEDIASOUP_CHANNEL_FD = String(CHANNEL_FD);
 
-var dtlsdata = {
-  role: 'server',
-  fingerprints: [{
-    algorithm: '',
-    value: ''
-  }]
-}
-
-var audiodata = {
-  kind: 'audio',
-  rtpParameters: {
-    muxId: null,
-    codecs: [
-      {
-        name: 'opus',
-        mimeType: 'audio/opus',
-        clockRate: 48000,
-        payloadType: 0,
-        channels: 2,
-        rtcpFeedback: [],
-        parameters: { useinbandfec: 1 }
-      }
-    ],
-    headerExtensions: [
-      { uri: 'urn:ietf:params:rtp-hdrext:ssrc-audio-level', id: 1 }
-    ],
-    encodings: [{ ssrc: 0 }],
-    rtcp: { cname: '', reducedSize: true, mux: true }
-  },
-  rtpMapping: {
-    codecPayloadTypes: [[0, 0]],
-    headerExtensionIds: [[1, 1]]
-  },
-  paused: false
-}
-
-var enableaudio = {
-  rtpParameters: {
-    muxId: null,
-    codecs: [
-      {
-        name: 'opus',
-        mimeType: 'audio/opus',
-        clockRate: 48000,
-        payloadType: 0,
-        channels: 2,
-        rtcpFeedback: [],
-        parameters: { useinbandfec: 1 }
-      }
-    ],
-    headerExtensions: [
-      { uri: 'urn:ietf:params:rtp-hdrext:ssrc-audio-level', id: 1 }
-    ],
-    encodings: [{ ssrc: 0 }],
-    rtcp: { cname: '', reducedSize: true, mux: true }
-  }
-}
-
-var videodata = {
-  kind: 'video',
-  rtpParameters: {
-    muxId: null,
-    codecs: [
-      {
-        name: 'H264',
-        mimeType: 'video/H264',
-        clockRate: 90000,
-        payloadType: 0,
-        rtcpFeedback: [{ type: 'goog-remb' }, { type: 'ccm', parameter: 'fir' }, { type: 'nack' }, { type: 'nack', parameter: 'pli' }],
-        parameters: { 'packetization-mode': 1 }
-      },
-      {
-        name: 'rtx',
-        mimeType: 'video/rtx',
-        clockRate: 90000,
-        payloadType: 0,
-        parameters: { apt: 0 }
-      }
-    ],
-    headerExtensions: [
-      { uri: 'urn:ietf:params:rtp-hdrext:toffset', id: 2 },
-      { uri: 'http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time', id: 3 },
-      { uri: 'urn:3gpp:video-orientation', id: 4 }
-    ],
-    encodings: [{ ssrc: 0, rtx: { ssrc: 0 } }],
-    rtcp: { cname: '', reducedSize: true, mux: true }
-  },
-  rtpMapping: {
-    codecPayloadTypes: [[0, 0], [0, 0]],
-    headerExtensionIds: [[2, 2], [3, 3], [4, 4]]
-  },
-  paused: false
-}
-
-var enablevideo = {
-  rtpParameters: {
-    muxId: null,
-    codecs: [
-      {
-        name: 'H264',
-        mimeType: 'video/H264',
-        clockRate: 90000,
-        payloadType: 0,
-        rtcpFeedback: [{ type: 'goog-remb' }, { type: 'ccm', parameter: 'fir' }, { type: 'nack' }, { type: 'nack', parameter: 'pli' }],
-        parameters: { 'packetization-mode': 1 }
-      },
-      {
-        name: 'rtx',
-        mimeType: 'video/rtx',
-        clockRate: 90000,
-        payloadType: 0,
-        parameters: { apt: 0 }
-      }
-    ],
-    headerExtensions: [
-      { uri: 'urn:ietf:params:rtp-hdrext:toffset', id: 2 },
-      { uri: 'http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time', id: 3 },
-      { uri: 'urn:3gpp:video-orientation', id: 4 }
-    ],
-    encodings: [{ ssrc: 0, rtx: { ssrc: 0 } }],
-    rtcp: { cname: '', reducedSize: true, mux: true }
-  }
-}
-
 class Channel {
   constructor(socket) {
     this.socket = socket;
@@ -348,25 +224,124 @@ class Server {
             pubData = parseSdp(msg.data.sdp);
             console.log(JSON.stringify(pubData));
 
-            dtlsdata.fingerprints[0].algorithm = pubData.fingerprint.type;
-            dtlsdata.fingerprints[0].value = pubData.fingerprint.hash;
+            let routerId = 1;
+            let transportId = 2;
+            let audioProducerId = 3;
+            let videoProducerId = 4;
 
-            audiodata.rtpParameters.codecs[0].payloadType = pubData.audio.payloadType;
-            audiodata.rtpParameters.encodings[0].ssrc = pubData.audio.ssrc;
-            audiodata.rtpParameters.rtcp.cname = pubData.cname;
-            audiodata.rtpMapping.codecPayloadTypes[0] = [pubData.audio.payloadType, pubData.audio.payloadType];
+            let routerIntr = {
+              routerId: routerId
+            }
 
-            videodata.rtpParameters.codecs[0].payloadType = pubData.video.payloadType;
-            videodata.rtpParameters.codecs[1].payloadType = pubData.video.rtx.payloadType;
-            videodata.rtpParameters.codecs[1].parameters.apt = pubData.video.payloadType;
-            videodata.rtpParameters.encodings[0].ssrc = pubData.video.ssrc;
-            videodata.rtpParameters.encodings[0].rtx.ssrc = pubData.video.rtx.ssrc;
-            videodata.rtpParameters.rtcp.cname = pubData.cname;
-            videodata.rtpMapping.codecPayloadTypes[0] = [pubData.video.payloadType, pubData.video.payloadType];
-            videodata.rtpMapping.codecPayloadTypes[1] = [pubData.video.rtx.payloadType, pubData.video.rtx.payloadType];
+            let transportIntr = {
+              routerId: routerId,
+              transportId: transportId
+            }
 
-            await channel.request("worker.createRouter", { "routerId": 111111 }, {});
-            let data = await channel.request("router.createWebRtcTransport", { "routerId": 111111, "transportId": 222222 }, { "tcp": false, ipv4: '100.100.81.209' });
+            let transportData = {
+              tcp: false,
+              ipv4: '100.100.81.208'
+            }
+
+            let dtlsdata = {
+              role: 'server',
+              fingerprints: [{
+                algorithm: pubData.fingerprint.type,
+                value: pubData.fingerprint.hash
+              }]
+            }
+
+            let audioIntr = {
+              routerId: routerId,
+              transportId: transportId,
+              producerId: audioProducerId
+            }
+
+            let videoIntr = {
+              routerId: routerId,
+              transportId: transportId,
+              producerId: videoProducerId
+            }
+
+            let audiodata = {
+              kind: 'audio',
+              rtpParameters: {
+                muxId: null,
+                codecs: [
+                  {
+                    name: 'opus',
+                    mimeType: 'audio/opus',
+                    clockRate: 48000,
+                    payloadType: pubData.audio.payloadType,
+                    channels: 2,
+                    rtcpFeedback: [],
+                    parameters: { useinbandfec: 1 }
+                  }
+                ],
+                headerExtensions: [
+                  { uri: 'urn:ietf:params:rtp-hdrext:ssrc-audio-level', id: 1 }
+                ],
+                encodings: [{ ssrc: pubData.audio.ssrc }],
+                rtcp: { cname: pubData.cname, reducedSize: true, mux: true }
+              },
+              rtpMapping: {
+                codecPayloadTypes: [[pubData.audio.payloadType, pubData.audio.payloadType]],
+                headerExtensionIds: [[1, 1]]
+              },
+              paused: false
+            }
+
+            let videodata = {
+              kind: 'video',
+              rtpParameters: {
+                muxId: null,
+                codecs: [
+                  {
+                    name: 'H264',
+                    mimeType: 'video/H264',
+                    clockRate: 90000,
+                    payloadType: pubData.video.payloadType,
+                    rtcpFeedback: [{ type: 'goog-remb' }, { type: 'ccm', parameter: 'fir' }, { type: 'nack' }, { type: 'nack', parameter: 'pli' }],
+                    parameters: { 'packetization-mode': 1 }
+                  }
+                ],
+                headerExtensions: [],
+                encodings: [{ ssrc: pubData.video.ssrc }],
+                rtcp: { cname: pubData.cname, reducedSize: true, mux: true }
+              },
+              rtpMapping: {
+                codecPayloadTypes: [[pubData.video.payloadType, pubData.video.payloadType]],
+                headerExtensionIds: []
+              },
+              paused: false
+            }
+
+            let hasAudio = msg.hasAudio && pubData.audio.ssrc && pubData.audio.payloadType;
+            let hasVideo = msg.hasVideo && pubData.video.ssrc && pubData.video.payloadType;
+            let hasRtx = msg.hasVideo && pubData.video.rtx.ssrc && pubData.video.rtx.payloadType;
+
+            if (hasRtx) {
+              videodata.rtpParameters.codecs[1] = {
+                name: 'rtx',
+                mimeType: 'video/rtx',
+                clockRate: 90000,
+                payloadType: pubData.video.rtx.payloadType,
+                parameters: { apt: pubData.video.payloadType }
+              }
+              videodata.rtpParameters.encodings[0].rtx = { ssrc: pubData.video.rtx.ssrc }
+              videodata.rtpMapping.codecPayloadTypes[1] = [pubData.video.rtx.payloadType, pubData.video.rtx.payloadType];
+
+              videodata.rtpParameters.headerExtensions = [
+                { uri: 'urn:ietf:params:rtp-hdrext:toffset', id: 2 },
+                { uri: 'http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time', id: 3 },
+                { uri: 'urn:3gpp:video-orientation', id: 4 }
+              ]
+
+              videodata.rtpMapping.headerExtensionIds = [[2, 2], [3, 3], [4, 4]];
+            }
+
+            await channel.request("worker.createRouter", routerIntr, {});
+            let data = await channel.request("router.createWebRtcTransport", transportIntr, transportData);
             var algorithm = data.dtlsLocalParameters.fingerprints[2].algorithm;
             var value = data.dtlsLocalParameters.fingerprints[2].value;
             var ufrag = data.iceLocalParameters.usernameFragment;
@@ -394,23 +369,32 @@ class Server {
               video: {
                 ssrc: pubData.video.ssrc,
                 payloadType: pubData.video.payloadType,
-                mid: pubData.video.mid,
-                rtx: {
-                  ssrc: pubData.video.payloadType,
-                  payloadType: pubData.video.rtx.payloadType,
-                }
+                mid: pubData.video.mid
               },
               cname: pubData.cname,
               sessionId: pubData.sessionId,
               isPub: true,
-              hasAudio: true,
-              hasVideo: true
+              hasAudio: hasAudio,
+              hasVideo: hasVideo,
+              hasRtx: hasRtx
             }
+
+            if (hasRtx) {
+              params.video.rtx = {
+                ssrc: pubData.video.payloadType,
+                payloadType: pubData.video.rtx.payloadType,
+              }
+            }
+
             var sdp = encodeSdp(params);
-            await channel.request("transport.setMaxBitrate", { "routerId": 111111, "transportId": 222222 }, { bitrate: 1200000 });
-            await channel.request("transport.setRemoteDtlsParameters", { "routerId": 111111, "transportId": 222222 }, dtlsdata);
-            await channel.request("router.createProducer", { "routerId": 111111, "transportId": 222222, "producerId": 333333 }, audiodata);
-            await channel.request("router.createProducer", { "routerId": 111111, "transportId": 222222, "producerId": 3333333 }, videodata);
+            await channel.request("transport.setMaxBitrate", transportIntr, { bitrate: 1200000 });
+            await channel.request("transport.setRemoteDtlsParameters", transportIntr, dtlsdata);
+            if (hasAudio) {
+              await channel.request("router.createProducer", audioIntr, audiodata);
+            }
+            if (hasVideo) {
+              await channel.request("router.createProducer", videoIntr, videodata);
+            }
             var pubsdp = {
               op: 'pub',
               type: 'answer',
@@ -419,9 +403,13 @@ class Server {
             console.log(JSON.stringify(pubsdp))
             ws.send(JSON.stringify(pubsdp));
             setInterval(() => {
-              channel.request("transport.getStats", { "routerId": 111111, "transportId": 222222 }, {});
-              channel.request("producer.getStats", { "routerId": 111111, "transportId": 222222, "producerId": 333333 }, {});
-              channel.request("producer.getStats", { "routerId": 111111, "transportId": 222222, "producerId": 3333333 }, {});
+              channel.request("transport.getStats", transportIntr, {});
+              if (hasAudio) {
+                channel.request("producer.getStats", audioIntr, {});
+              }
+              if (hasVideo) {
+                channel.request("producer.getStats", videoIntr, {});
+              }
             }, 3000);
             console.log('pub end');
           } catch (err) {
@@ -436,23 +424,129 @@ class Server {
             subData = parseSdp(msg.data.sdp);
             console.log(JSON.stringify(subData));
 
-            dtlsdata.fingerprints[0].algorithm = subData.fingerprint.type;
-            dtlsdata.fingerprints[0].value = subData.fingerprint.hash;
+            let routerId = 1;
+            let audioProducerId = 3;
+            let videoProducerId = 4;
 
-            enableaudio.rtpParameters.codecs[0].payloadType = subData.audio.payloadType;
-            enableaudio.rtpParameters.encodings[0].ssrc = pubData.audio.ssrc;
-            enableaudio.rtpParameters.rtcp.cname = pubData.cname;
+            let transportId = 5;
+            let audioConsumerId = 6;
+            let videoConsumerId = 7;
 
-            enablevideo.rtpParameters.codecs[0].payloadType = subData.video.payloadType;
-            enablevideo.rtpParameters.codecs[1].payloadType = subData.video.rtx.payloadType;
-            enablevideo.rtpParameters.codecs[1].parameters.apt = subData.video.payloadType;
-            enablevideo.rtpParameters.encodings[0].ssrc = pubData.video.ssrc;
-            enablevideo.rtpParameters.encodings[0].rtx.ssrc = pubData.video.rtx.ssrc;
-            enablevideo.rtpParameters.rtcp.cname = pubData.cname;
+            let audioIntr = {
+              routerId: routerId,
+              producerId: audioProducerId,
+              consumerId: audioConsumerId,
+              transportId: transportId
+            }
 
-            await channel.request("router.createConsumer", { "routerId": 111111, "producerId": 333333, "consumerId": 444444 }, { kind: 'audio', pubAudioCodec: pubData.audio.payloadType, subAudioCodec: subData.audio.payloadType })
-            await channel.request("router.createConsumer", { "routerId": 111111, "producerId": 3333333, "consumerId": 4444444 }, { kind: 'video', pubVideoCodec: pubData.video.payloadType, subVideoCodec: subData.video.payloadType, pubRtxCodec: pubData.video.rtx.payloadType, subRtxCodec: subData.video.rtx.payloadType })
-            let data = await channel.request("router.createWebRtcTransport", { "routerId": 111111, "transportId": 555555 }, { "tcp": false, ipv4: '100.100.81.207' })
+            let audioData = {
+              kind: 'audio',
+              pubAudioCodec: pubData.audio.payloadType,
+              subAudioCodec: subData.audio.payloadType
+            }
+
+            let videoIntr = {
+              routerId: routerId,
+              producerId: videoProducerId,
+              consumerId: videoConsumerId,
+              transportId: transportId
+            }
+
+            let videoData = {
+              kind: 'video',
+              pubVideoCodec: pubData.video.payloadType,
+              subVideoCodec: subData.video.payloadType,
+              pubRtxCodec: pubData.video.rtx.payloadType,
+              subRtxCodec: subData.video.rtx.payloadType
+            }
+
+            let transportIntr = {
+              routerId: routerId,
+              transportId: transportId
+            }
+
+            let transportData = {
+              tcp: false,
+              ipv4: msg.ipv4
+            }
+
+            let dtlsdata = {
+              role: 'server',
+              fingerprints: [{
+                algorithm: subData.fingerprint.type,
+                value: subData.fingerprint.hash
+              }]
+            }
+
+            let enableaudio = {
+              rtpParameters: {
+                muxId: null,
+                codecs: [
+                  {
+                    name: 'opus',
+                    mimeType: 'audio/opus',
+                    clockRate: 48000,
+                    payloadType: subData.audio.payloadType,
+                    channels: 2,
+                    rtcpFeedback: [],
+                    parameters: { useinbandfec: 1 }
+                  }
+                ],
+                headerExtensions: [
+                  { uri: 'urn:ietf:params:rtp-hdrext:ssrc-audio-level', id: 1 }
+                ],
+                encodings: [{ ssrc: pubData.audio.ssrc }],
+                rtcp: { cname: pubData.cname, reducedSize: true, mux: true }
+              }
+            }
+
+            let enablevideo = {
+              rtpParameters: {
+                muxId: null,
+                codecs: [
+                  {
+                    name: 'H264',
+                    mimeType: 'video/H264',
+                    clockRate: 90000,
+                    payloadType: subData.video.payloadType,
+                    rtcpFeedback: [{ type: 'goog-remb' }, { type: 'ccm', parameter: 'fir' }, { type: 'nack' }, { type: 'nack', parameter: 'pli' }],
+                    parameters: { 'packetization-mode': 1 }
+                  }
+                ],
+                headerExtensions: [],
+                encodings: [{ ssrc: pubData.video.ssrc }],
+                rtcp: { cname: pubData.cname, reducedSize: true, mux: true }
+              }
+            }
+
+            let hasAudio = msg.hasAudio && subData.audio.payloadType;
+            let hasVideo = msg.hasVideo && subData.video.payloadType;
+            let hasRtx = msg.hasVideo && subData.video.rtx.payloadType && pubData.video.rtx.payloadType;
+
+            if (hasRtx) {
+              enablevideo.rtpParameters.codecs[1] = {
+                name: 'rtx',
+                mimeType: 'video/rtx',
+                clockRate: 90000,
+                payloadType: subData.video.rtx.payloadType,
+                parameters: { apt: subData.video.payloadType }
+              }
+              enablevideo.rtpParameters.encodings[0].rtx = { ssrc: pubData.video.rtx.ssrc }
+
+              enablevideo.rtpParameters.headerExtensions = [
+                { uri: 'urn:ietf:params:rtp-hdrext:toffset', id: 2 },
+                { uri: 'http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time', id: 3 },
+                { uri: 'urn:3gpp:video-orientation', id: 4 }
+              ]
+            }
+
+            if (hasAudio) {
+              await channel.request("router.createConsumer", audioIntr, audioData)
+            }
+            if (hasVideo) {
+              await channel.request("router.createConsumer", videoIntr, videoData)
+            }
+            let data = await channel.request("router.createWebRtcTransport", transportIntr, transportData)
             var algorithm = data.dtlsLocalParameters.fingerprints[2].algorithm;
             var value = data.dtlsLocalParameters.fingerprints[2].value;
             var ufrag = data.iceLocalParameters.usernameFragment;
@@ -484,22 +578,31 @@ class Server {
                 streamId: pubData.video.streamId,
                 trackId: pubData.video.trackId,
                 payloadType: subData.video.payloadType,
-                rtx: {
-                  ssrc: pubData.video.rtx.ssrc,
-                  payloadType: subData.video.rtx.payloadType,
-                },
                 mid: subData.video.mid,
               },
               cname: pubData.cname,
               sessionId: subData.sessionId,
               isPub: false,
-              hasAudio: true,
-              hasVideo: true
+              hasAudio: hasAudio,
+              hasVideo: hasVideo,
+              hasRtx: hasRtx
             }
+
+            if (hasRtx) {
+              params.video.rtx = {
+                ssrc: pubData.video.rtx.ssrc,
+                payloadType: subData.video.rtx.payloadType,
+              }
+            }
+
             var sdp = encodeSdp(params);
-            await channel.request("transport.setRemoteDtlsParameters", { "routerId": 111111, "transportId": 555555 }, dtlsdata)
-            await channel.request("consumer.enable", { "routerId": 111111, "transportId": 555555, "producerId": 333333, "consumerId": 444444 }, enableaudio)
-            await channel.request("consumer.enable", { "routerId": 111111, "transportId": 555555, "producerId": 3333333, "consumerId": 4444444 }, enablevideo)
+            await channel.request("transport.setRemoteDtlsParameters", transportIntr, dtlsdata)
+            if (hasAudio) {
+              await channel.request("consumer.enable", audioIntr, enableaudio)
+            }
+            if (hasVideo) {
+              await channel.request("consumer.enable", videoIntr, enablevideo)
+            }
             var subsdp = {
               op: 'sub1',
               type: 'answer',
@@ -508,9 +611,13 @@ class Server {
             console.log(JSON.stringify(subsdp))
             ws.send(JSON.stringify(subsdp));
             setInterval(() => {
-              channel.request("transport.getStats", { "routerId": 111111, "transportId": 555555 }, {});
-              channel.request("consumer.getStats", { "routerId": 111111, "transportId": 555555, "producerId": 333333, "consumerId": 444444 }, {});
-              channel.request("consumer.getStats", { "routerId": 111111, "transportId": 555555, "producerId": 3333333, "consumerId": 4444444 }, {});
+              channel.request("transport.getStats", transportIntr, {});
+              if (hasAudio) {
+                channel.request("consumer.getStats", audioIntr, {});
+              }
+              if (hasVideo) {
+                channel.request("consumer.getStats", videoIntr, {});
+              }
             }, 3000);
             console.log('sub1 end');
           } catch (err) {
@@ -525,23 +632,129 @@ class Server {
             subData = parseSdp(msg.data.sdp);
             console.log(JSON.stringify(subData));
 
-            dtlsdata.fingerprints[0].algorithm = subData.fingerprint.type;
-            dtlsdata.fingerprints[0].value = subData.fingerprint.hash;
+            let routerId = 1;
+            let audioProducerId = 3;
+            let videoProducerId = 4;
 
-            enableaudio.rtpParameters.codecs[0].payloadType = subData.audio.payloadType;
-            enableaudio.rtpParameters.encodings[0].ssrc = pubData.audio.ssrc;
-            enableaudio.rtpParameters.rtcp.cname = pubData.cname;
+            let transportId = 8;
+            let audioConsumerId = 9;
+            let videoConsumerId = 10;
 
-            enablevideo.rtpParameters.codecs[0].payloadType = subData.video.payloadType;
-            enablevideo.rtpParameters.codecs[1].payloadType = subData.video.rtx.payloadType;
-            enablevideo.rtpParameters.codecs[1].parameters.apt = subData.video.payloadType;
-            enablevideo.rtpParameters.encodings[0].ssrc = pubData.video.ssrc;
-            enablevideo.rtpParameters.encodings[0].rtx.ssrc = pubData.video.rtx.ssrc;
-            enablevideo.rtpParameters.rtcp.cname = pubData.cname;
+            let audioIntr = {
+              routerId: routerId,
+              producerId: audioProducerId,
+              consumerId: audioConsumerId,
+              transportId: transportId
+            }
 
-            await channel.request("router.createConsumer", { "routerId": 111111, "producerId": 333333, "consumerId": 666666 }, { kind: 'audio', pubAudioCodec: pubData.audio.payloadType, subAudioCodec: subData.audio.payloadType })
-            await channel.request("router.createConsumer", { "routerId": 111111, "producerId": 3333333, "consumerId": 6666666 }, { kind: 'video', pubVideoCodec: pubData.video.payloadType, subVideoCodec: subData.video.payloadType, pubRtxCodec: pubData.video.rtx.payloadType, subRtxCodec: subData.video.rtx.payloadType })
-            let data = await channel.request("router.createWebRtcTransport", { "routerId": 111111, "transportId": 777777 }, { "tcp": false, ipv4: '100.100.81.207' })
+            let audioData = {
+              kind: 'audio',
+              pubAudioCodec: pubData.audio.payloadType,
+              subAudioCodec: subData.audio.payloadType
+            }
+
+            let videoIntr = {
+              routerId: routerId,
+              producerId: videoProducerId,
+              consumerId: videoConsumerId,
+              transportId: transportId
+            }
+
+            let videoData = {
+              kind: 'video',
+              pubVideoCodec: pubData.video.payloadType,
+              subVideoCodec: subData.video.payloadType,
+              pubRtxCodec: pubData.video.rtx.payloadType,
+              subRtxCodec: subData.video.rtx.payloadType
+            }
+
+            let transportIntr = {
+              routerId: routerId,
+              transportId: transportId
+            }
+
+            let transportData = {
+              tcp: false,
+              ipv4: msg.ipv4
+            }
+
+            let dtlsdata = {
+              role: 'server',
+              fingerprints: [{
+                algorithm: subData.fingerprint.type,
+                value: subData.fingerprint.hash
+              }]
+            }
+
+            let enableaudio = {
+              rtpParameters: {
+                muxId: null,
+                codecs: [
+                  {
+                    name: 'opus',
+                    mimeType: 'audio/opus',
+                    clockRate: 48000,
+                    payloadType: subData.audio.payloadType,
+                    channels: 2,
+                    rtcpFeedback: [],
+                    parameters: { useinbandfec: 1 }
+                  }
+                ],
+                headerExtensions: [
+                  { uri: 'urn:ietf:params:rtp-hdrext:ssrc-audio-level', id: 1 }
+                ],
+                encodings: [{ ssrc: pubData.audio.ssrc }],
+                rtcp: { cname: pubData.cname, reducedSize: true, mux: true }
+              }
+            }
+
+            let enablevideo = {
+              rtpParameters: {
+                muxId: null,
+                codecs: [
+                  {
+                    name: 'H264',
+                    mimeType: 'video/H264',
+                    clockRate: 90000,
+                    payloadType: subData.video.payloadType,
+                    rtcpFeedback: [{ type: 'goog-remb' }, { type: 'ccm', parameter: 'fir' }, { type: 'nack' }, { type: 'nack', parameter: 'pli' }],
+                    parameters: { 'packetization-mode': 1 }
+                  }
+                ],
+                headerExtensions: [],
+                encodings: [{ ssrc: pubData.video.ssrc }],
+                rtcp: { cname: pubData.cname, reducedSize: true, mux: true }
+              }
+            }
+
+            let hasAudio = msg.hasAudio && subData.audio.payloadType;
+            let hasVideo = msg.hasVideo && subData.video.payloadType;
+            let hasRtx = msg.hasVideo && subData.video.rtx.payloadType && pubData.video.rtx.payloadType;
+
+            if (hasRtx) {
+              enablevideo.rtpParameters.codecs[1] = {
+                name: 'rtx',
+                mimeType: 'video/rtx',
+                clockRate: 90000,
+                payloadType: subData.video.rtx.payloadType,
+                parameters: { apt: subData.video.payloadType }
+              }
+              enablevideo.rtpParameters.encodings[0].rtx = { ssrc: pubData.video.rtx.ssrc }
+
+              enablevideo.rtpParameters.headerExtensions = [
+                { uri: 'urn:ietf:params:rtp-hdrext:toffset', id: 2 },
+                { uri: 'http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time', id: 3 },
+                { uri: 'urn:3gpp:video-orientation', id: 4 }
+              ]
+            }
+
+            if (hasAudio) {
+              await channel.request("router.createConsumer", audioIntr, audioData)
+            }
+            if (hasVideo) {
+              await channel.request("router.createConsumer", videoIntr, videoData)
+            }
+            let data = await channel.request("router.createWebRtcTransport", transportIntr, transportData)
             var algorithm = data.dtlsLocalParameters.fingerprints[2].algorithm;
             var value = data.dtlsLocalParameters.fingerprints[2].value;
             var ufrag = data.iceLocalParameters.usernameFragment;
@@ -573,22 +786,31 @@ class Server {
                 streamId: pubData.video.streamId,
                 trackId: pubData.video.trackId,
                 payloadType: subData.video.payloadType,
-                rtx: {
-                  ssrc: pubData.video.rtx.ssrc,
-                  payloadType: subData.video.rtx.payloadType,
-                },
-                mid: subData.video.mid
+                mid: subData.video.mid,
               },
               cname: pubData.cname,
               sessionId: subData.sessionId,
               isPub: false,
-              hasAudio: true,
-              hasVideo: true
+              hasAudio: hasAudio,
+              hasVideo: hasVideo,
+              hasRtx: hasRtx
             }
+
+            if (hasRtx) {
+              params.video.rtx = {
+                ssrc: pubData.video.rtx.ssrc,
+                payloadType: subData.video.rtx.payloadType,
+              }
+            }
+
             var sdp = encodeSdp(params);
-            await channel.request("transport.setRemoteDtlsParameters", { "routerId": 111111, "transportId": 777777 }, dtlsdata)
-            await channel.request("consumer.enable", { "routerId": 111111, "transportId": 777777, "producerId": 333333, "consumerId": 666666 }, enableaudio)
-            await channel.request("consumer.enable", { "routerId": 111111, "transportId": 777777, "producerId": 3333333, "consumerId": 6666666 }, enablevideo)
+            await channel.request("transport.setRemoteDtlsParameters", transportIntr, dtlsdata)
+            if (hasAudio) {
+              await channel.request("consumer.enable", audioIntr, enableaudio)
+            }
+            if (hasVideo) {
+              await channel.request("consumer.enable", videoIntr, enablevideo)
+            }
             var subsdp = {
               op: 'sub2',
               type: 'answer',
@@ -597,9 +819,13 @@ class Server {
             console.log(JSON.stringify(subsdp))
             ws.send(JSON.stringify(subsdp));
             setInterval(() => {
-              channel.request("transport.getStats", { "routerId": 111111, "transportId": 777777 }, {});
-              channel.request("consumer.getStats", { "routerId": 111111, "transportId": 777777, "producerId": 333333, "consumerId": 666666 }, {});
-              channel.request("consumer.getStats", { "routerId": 111111, "transportId": 777777, "producerId": 3333333, "consumerId": 6666666 }, {});
+              channel.request("transport.getStats", transportIntr, {});
+              if (hasAudio) {
+                channel.request("consumer.getStats", audioIntr, {});
+              }
+              if (hasVideo) {
+                channel.request("consumer.getStats", videoIntr, {});
+              }
             }, 3000);
             console.log('sub2 end');
           } catch (err) {
@@ -750,7 +976,7 @@ let sdpTemplate = {
       fmtp: [
         {
           payload: 0,
-          config: "packetization-mode=1"
+          config: "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f"
         },
         {
           payload: 0,
@@ -983,6 +1209,7 @@ function parseSdp(sdpStr) {
 }
 
 function encodeSdp(params) {
+  console.log(JSON.stringify(params));
   let sdp = JSON.parse(JSON.stringify(sdpTemplate));
 
   sdp.origin.sessionId = params.sessionId;
@@ -1033,50 +1260,89 @@ function encodeSdp(params) {
   }
 
   if (params.hasVideo) {
-    let media = sdp.media[1];
-    if (params.isPub) {
-      media.direction = 'recvonly';
+    if (params.hasRtx) {
+      let media = sdp.media[1];
+      if (params.isPub) {
+        media.direction = 'recvonly';
+      } else {
+        media.direction = 'sendonly';
+      }
+      media.rtp[0].payload = params.video.payloadType;
+      media.rtp[1].payload = params.video.rtx.payloadType;
+      media.fmtp[0].payload = params.video.payloadType;
+      media.fmtp[1].payload = params.video.rtx.payloadType;
+      media.fmtp[1].config = 'apt=' + params.video.payloadType;
+      media.payloads = params.video.payloadType + ' ' + params.video.rtx.payloadType;
+      media.rtcpFb[0].payload = params.video.payloadType;
+      media.rtcpFb[1].payload = params.video.payloadType;
+      media.rtcpFb[2].payload = params.video.payloadType;
+      media.rtcpFb[3].payload = params.video.payloadType;
+      media.iceUfrag = params.ice.iceUfrag;
+      media.icePwd = params.ice.icePwd;
+      media.candidates[0].ip = params.candidate.ip;
+      media.candidates[0].port = params.candidate.port;
+      if (params.isPub) {
+        delete media.ssrcs;
+        delete media.ssrcGroups;
+      } else {
+        media.ssrcs[0].id = params.video.ssrc;
+        media.ssrcs[0].value = params.video.streamId + ' ' + params.video.trackId;
+        media.ssrcs[1].id = params.video.ssrc;
+        media.ssrcs[1].value = params.video.streamId;
+        media.ssrcs[2].id = params.video.ssrc;
+        media.ssrcs[2].value = params.video.trackId;
+        media.ssrcs[3].id = params.video.ssrc;
+        media.ssrcs[3].value = params.cname;
+        media.ssrcs[4].id = params.video.rtx.ssrc;
+        media.ssrcs[4].value = params.video.streamId + ' ' + params.video.trackId;
+        media.ssrcs[5].id = params.video.rtx.ssrc;
+        media.ssrcs[5].value = params.video.streamId;
+        media.ssrcs[6].id = params.video.rtx.ssrc;
+        media.ssrcs[6].value = params.video.trackId;
+        media.ssrcs[7].id = params.video.rtx.ssrc;
+        media.ssrcs[7].value = params.cname;
+        media.ssrcGroups[0].ssrcs = params.video.ssrc + ' ' + params.video.rtx.ssrc;
+      }
     } else {
-      media.direction = 'sendonly';
-    }
-    media.rtp[0].payload = params.video.payloadType;
-    media.rtp[1].payload = params.video.rtx.payloadType;
-    media.fmtp[0].payload = params.video.payloadType;
-    media.fmtp[1].payload = params.video.rtx.payloadType;
-    media.fmtp[1].config = 'apt=' + params.video.payloadType;
-    media.payloads = params.video.payloadType + ' ' + params.video.rtx.payloadType;
-    media.rtcpFb[0].payload = params.video.payloadType;
-    media.rtcpFb[1].payload = params.video.payloadType;
-    media.rtcpFb[2].payload = params.video.payloadType;
-    media.rtcpFb[3].payload = params.video.payloadType;
-    media.iceUfrag = params.ice.iceUfrag;
-    media.icePwd = params.ice.icePwd;
-    media.candidates[0].ip = params.candidate.ip;
-    media.candidates[0].port = params.candidate.port;
-    if (params.isPub) {
-      delete media.ssrcs;
+      let media = sdp.media[1];
+      if (params.isPub) {
+        media.direction = 'recvonly';
+      } else {
+        media.direction = 'sendonly';
+      }
+
+      media.rtp = [media.rtp[0]];
+      media.fmtp = [media.fmtp[0]];
+      media.ssrcs = [media.ssrcs[0], media.ssrcs[1], media.ssrcs[2], media.ssrcs[3]];
       delete media.ssrcGroups;
-    } else {
-      media.ssrcs[0].id = params.video.ssrc;
-      media.ssrcs[0].value = params.video.streamId + ' ' + params.video.trackId;
-      media.ssrcs[1].id = params.video.ssrc;
-      media.ssrcs[1].value = params.video.streamId;
-      media.ssrcs[2].id = params.video.ssrc;
-      media.ssrcs[2].value = params.video.trackId;
-      media.ssrcs[3].id = params.video.ssrc;
-      media.ssrcs[3].value = params.cname;
-      media.ssrcs[4].id = params.video.rtx.ssrc;
-      media.ssrcs[4].value = params.video.streamId + ' ' + params.video.trackId;
-      media.ssrcs[5].id = params.video.rtx.ssrc;
-      media.ssrcs[5].value = params.video.streamId;
-      media.ssrcs[6].id = params.video.rtx.ssrc;
-      media.ssrcs[6].value = params.video.trackId;
-      media.ssrcs[7].id = params.video.rtx.ssrc;
-      media.ssrcs[7].value = params.cname;
-      media.ssrcGroups[0].ssrcs = params.video.ssrc + ' ' + params.video.rtx.ssrc;
+      delete media.ext;
+
+      media.rtp[0].payload = params.video.payloadType;
+      media.fmtp[0].payload = params.video.payloadType;
+      media.payloads = params.video.payloadType;
+      media.rtcpFb[0].payload = params.video.payloadType;
+      media.rtcpFb[1].payload = params.video.payloadType;
+      media.rtcpFb[2].payload = params.video.payloadType;
+      media.rtcpFb[3].payload = params.video.payloadType;
+      media.iceUfrag = params.ice.iceUfrag;
+      media.icePwd = params.ice.icePwd;
+      media.candidates[0].ip = params.candidate.ip;
+      media.candidates[0].port = params.candidate.port;
+      if (params.isPub) {
+        delete media.ssrcs;
+        delete media.ssrcGroups;
+      } else {
+        media.ssrcs[0].id = params.video.ssrc;
+        media.ssrcs[0].value = params.video.streamId + ' ' + params.video.trackId;
+        media.ssrcs[1].id = params.video.ssrc;
+        media.ssrcs[1].value = params.video.streamId;
+        media.ssrcs[2].id = params.video.ssrc;
+        media.ssrcs[2].value = params.video.trackId;
+        media.ssrcs[3].id = params.video.ssrc;
+        media.ssrcs[3].value = params.cname;
+      }
     }
   }
-
   if (!params.hasAudio) {
     sdp.media = [sdp.media[1]];
   }
@@ -1084,6 +1350,8 @@ function encodeSdp(params) {
   if (!params.hasVideo) {
     sdp.media = [sdp.media[0]];
   }
+
+  console.log(JSON.stringify(sdp));
 
   let sdpStr = transform.write(sdp);
   return sdpStr

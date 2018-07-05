@@ -125,7 +125,7 @@ let sdpTemplate = {
             fmtp: [
                 {
                     payload: 0,
-                    config: "packetization-mode=1"
+                    config: "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f"
                 },
                 {
                     payload: 0,
@@ -408,47 +408,87 @@ function encodeSdp(params) {
     }
 
     if (params.hasVideo) {
-        let media = sdp.media[1];
-        if (params.isPub) {
-            media.direction = 'recvonly';
+        if (params.hasRtx) {
+            let media = sdp.media[1];
+            if (params.isPub) {
+                media.direction = 'recvonly';
+            } else {
+                media.direction = 'sendonly';
+            }
+            media.rtp[0].payload = params.video.payloadType;
+            media.rtp[1].payload = params.video.rtx.payloadType;
+            media.fmtp[0].payload = params.video.payloadType;
+            media.fmtp[1].payload = params.video.rtx.payloadType;
+            media.fmtp[1].config = 'apt=' + params.video.payloadType;
+            media.payloads = params.video.payloadType + ' ' + params.video.rtx.payloadType;
+            media.rtcpFb[0].payload = params.video.payloadType;
+            media.rtcpFb[1].payload = params.video.payloadType;
+            media.rtcpFb[2].payload = params.video.payloadType;
+            media.rtcpFb[3].payload = params.video.payloadType;
+            media.iceUfrag = params.ice.iceUfrag;
+            media.icePwd = params.ice.icePwd;
+            media.candidates[0].ip = params.candidate.ip;
+            media.candidates[0].port = params.candidate.port;
+            if (params.isPub) {
+                delete media.ssrcs;
+                delete media.ssrcGroups;
+            } else {
+                media.ssrcs[0].id = params.video.ssrc;
+                media.ssrcs[0].value = params.video.streamId + ' ' + params.video.trackId;
+                media.ssrcs[1].id = params.video.ssrc;
+                media.ssrcs[1].value = params.video.streamId;
+                media.ssrcs[2].id = params.video.ssrc;
+                media.ssrcs[2].value = params.video.trackId;
+                media.ssrcs[3].id = params.video.ssrc;
+                media.ssrcs[3].value = params.cname;
+                media.ssrcs[4].id = params.video.rtx.ssrc;
+                media.ssrcs[4].value = params.video.streamId + ' ' + params.video.trackId;
+                media.ssrcs[5].id = params.video.rtx.ssrc;
+                media.ssrcs[5].value = params.video.streamId;
+                media.ssrcs[6].id = params.video.rtx.ssrc;
+                media.ssrcs[6].value = params.video.trackId;
+                media.ssrcs[7].id = params.video.rtx.ssrc;
+                media.ssrcs[7].value = params.cname;
+                media.ssrcGroups[0].ssrcs = params.video.ssrc + ' ' + params.video.rtx.ssrc;
+            }
         } else {
-            media.direction = 'sendonly';
-        }
-        media.rtp[0].payload = params.video.payloadType;
-        media.rtp[1].payload = params.video.rtx.payloadType;
-        media.fmtp[0].payload = params.video.payloadType;
-        media.fmtp[1].payload = params.video.rtx.payloadType;
-        media.fmtp[1].config = 'apt=' + params.video.payloadType;
-        media.payloads = params.video.payloadType + ' ' + params.video.rtx.payloadType;
-        media.rtcpFb[0].payload = params.video.payloadType;
-        media.rtcpFb[1].payload = params.video.payloadType;
-        media.rtcpFb[2].payload = params.video.payloadType;
-        media.rtcpFb[3].payload = params.video.payloadType;
-        media.iceUfrag = params.ice.iceUfrag;
-        media.icePwd = params.ice.icePwd;
-        media.candidates[0].ip = params.candidate.ip;
-        media.candidates[0].port = params.candidate.port;
-        if (params.isPub) {
-            delete media.ssrcs;
+            let media = sdp.media[1];
+            if (params.isPub) {
+                media.direction = 'recvonly';
+            } else {
+                media.direction = 'sendonly';
+            }
+
+            media.rtp = [media.rtp[0]];
+            media.fmtp = [media.fmtp[0]];
+            media.ssrcs = [media.ssrcs[0], media.ssrcs[1], media.ssrcs[2], media.ssrcs[3]];
             delete media.ssrcGroups;
-        } else {
-            media.ssrcs[0].id = params.video.ssrc;
-            media.ssrcs[0].value = params.video.streamId + ' ' + params.video.trackId;
-            media.ssrcs[1].id = params.video.ssrc;
-            media.ssrcs[1].value = params.video.streamId;
-            media.ssrcs[2].id = params.video.ssrc;
-            media.ssrcs[2].value = params.video.trackId;
-            media.ssrcs[3].id = params.video.ssrc;
-            media.ssrcs[3].value = params.cname;
-            media.ssrcs[4].id = params.video.rtx.ssrc;
-            media.ssrcs[4].value = params.video.streamId + ' ' + params.video.trackId;
-            media.ssrcs[5].id = params.video.rtx.ssrc;
-            media.ssrcs[5].value = params.video.streamId;
-            media.ssrcs[6].id = params.video.rtx.ssrc;
-            media.ssrcs[6].value = params.video.trackId;
-            media.ssrcs[7].id = params.video.rtx.ssrc;
-            media.ssrcs[7].value = params.cname;
-            media.ssrcGroups[0].ssrcs = params.video.ssrc + ' ' + params.video.rtx.ssrc;
+            delete media.ext;
+
+            media.rtp[0].payload = params.video.payloadType;
+            media.fmtp[0].payload = params.video.payloadType;
+            media.payloads = params.video.payloadType;
+            media.rtcpFb[0].payload = params.video.payloadType;
+            media.rtcpFb[1].payload = params.video.payloadType;
+            media.rtcpFb[2].payload = params.video.payloadType;
+            media.rtcpFb[3].payload = params.video.payloadType;
+            media.iceUfrag = params.ice.iceUfrag;
+            media.icePwd = params.ice.icePwd;
+            media.candidates[0].ip = params.candidate.ip;
+            media.candidates[0].port = params.candidate.port;
+            if (params.isPub) {
+                delete media.ssrcs;
+                delete media.ssrcGroups;
+            } else {
+                media.ssrcs[0].id = params.video.ssrc;
+                media.ssrcs[0].value = params.video.streamId + ' ' + params.video.trackId;
+                media.ssrcs[1].id = params.video.ssrc;
+                media.ssrcs[1].value = params.video.streamId;
+                media.ssrcs[2].id = params.video.ssrc;
+                media.ssrcs[2].value = params.video.trackId;
+                media.ssrcs[3].id = params.video.ssrc;
+                media.ssrcs[3].value = params.cname;
+            }
         }
     }
 
