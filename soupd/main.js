@@ -430,7 +430,8 @@ async function pub(msg) {
         sessionId: pubData.sessionId,
         isPub: true,
         hasAudio: hasAudio,
-        hasVideo: hasVideo
+        hasVideo: hasVideo,
+        hasRtx: hasRtx
     }
 
     if (hasRtx) {
@@ -702,7 +703,8 @@ async function sub(msg) {
         sessionId: subData.sessionId,
         isPub: false,
         hasAudio: hasAudio,
-        hasVideo: hasVideo
+        hasVideo: hasVideo,
+        hasRtx: hasRtx
     }
 
     if (hasRtx) {
