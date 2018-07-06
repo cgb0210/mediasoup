@@ -25,7 +25,7 @@ let channel = new Channel(worker.child.stdio[CHANNEL_FD], notify)
 function Socket() {
     this.reconnectInterval = 1000;
 }
-Socket.prototype.open = function (address) {
+Socket.prototype.open = function(address) {
     this.address = address;
     this.instance = new WebSocket(this.address);
     this.instance.on('close', (code, reason) => {
@@ -55,10 +55,10 @@ Socket.prototype.open = function (address) {
         this.onopen();
     });
 }
-Socket.prototype.close = function (code, data) {
+Socket.prototype.close = function(code, data) {
     this.instance.close(code, data);
 }
-Socket.prototype.sendmsg = function (key, data) {
+Socket.prototype.sendmsg = function(key, data) {
     var value = JSON.stringify(data);
     var msg = key + '=' + value;
     try {
@@ -71,29 +71,29 @@ Socket.prototype.sendmsg = function (key, data) {
     // logger.info("rooms", rooms);
     // logger.info("transform", transform);
 }
-Socket.prototype.reconnect = function () {
+Socket.prototype.reconnect = function() {
     this.instance.removeAllListeners();
     var that = this;
-    setTimeout(function () {
+    setTimeout(function() {
         that.open(that.address);
     }, this.reconnectInterval);
 }
 
 let ws = new Socket();
 ws.open('ws://localhost:5003/erizolpc');
-ws.onopen = function () {
+ws.onopen = function() {
     let req = {
         erizodid: id,
     };
     this.sendmsg('handshake', req);
 }
-ws.onerror = function (err) {
+ws.onerror = function(err) {
     logger.info("onerror", err);
 }
-ws.onclose = function (code, reason) {
+ws.onclose = function(code, reason) {
     logger.info("onclose code & error", code + ' ' + reason);
 }
-ws.onmessage = function (data) {
+ws.onmessage = function(data) {
     logger.info('recv', data);
     if (typeof data == 'string') {
         var index = data.indexOf('=');
@@ -449,7 +449,16 @@ async function pub(msg) {
     }
 
     let sdp = utils.encodeSdp(params);
-    await channel.request("transport.setMaxBitrate", transportIntr, { bitrate: MaxBitrate });
+    let maxBitrate = msg.maxBitrate;
+    if (maxBitrate) {
+        maxBitrate = maxBitrate * 1000;
+        if (maxBitrate <= 0 || maxBitrate > MaxBitrate) {
+            maxBitrate = MaxBitrate;
+        }
+    } else {
+        maxBitrate = MaxBitrate;
+    }
+    await channel.request("transport.setMaxBitrate", transportIntr, { bitrate: maxBitrate });
     await channel.request("transport.setRemoteDtlsParameters", transportIntr, dtlsdata);
     if (hasAudio) {
         await channel.request("router.createProducer", audioIntr, audiodata);
