@@ -167,66 +167,70 @@ function procmsg(key, data) {
 }
 
 function notify(msg) {
-    if (msg.event == "icestatechange") {
-        if (msg.data.iceState == "connected" || msg.data.iceState == "completed") {
+    try {
+        if (msg.event == "icestatechange") {
+            if (msg.data.iceState == "connected" || msg.data.iceState == "completed") {
+                let data = transform[msg.targetId];
+                if (data) {
+                    if (!data.iceState) {
+                        let res = {
+                            roomiid: data.roomiid,
+                            playerid: data.playerid,
+                            streamid: data.streamid,
+                            connid: data.connid,
+                            connected: true,
+                        }
+                        ws.sendmsg("webrtc-icestate", res);
+                        data.iceState = "connected";
+                    }
+                }
+            }
+        }
+    
+        if (msg.event == "close") {
             let data = transform[msg.targetId];
             if (data) {
-                if (!data.iceState) {
-                    let res = {
-                        roomiid: data.roomiid,
-                        playerid: data.playerid,
-                        streamid: data.streamid,
-                        connid: data.connid,
-                        connected: true,
-                    }
-                    ws.sendmsg("webrtc-icestate", res);
-                    data.iceState = "connected";
-                }
-            }
-        }
-    }
-
-    if (msg.event == "close") {
-        let data = transform[msg.targetId];
-        if (data) {
-            if (data.connid) {
-                let audioConsumerId = rooms[data.roomiid].streams[data.streamid].conns[data.connid].audioConsumerId;
-                let videoConsumerId = rooms[data.roomiid].streams[data.streamid].conns[data.connid].videoConsumerId;
-                let transportId = rooms[data.roomiid].streams[data.streamid].conns[data.connid].transportId;
-
-                delete transform[audioConsumerId];
-                delete transform[videoConsumerId];
-                delete transform[transportId];
-                clearInterval(rooms[data.roomiid].streams[data.streamid].conns[data.connid].getStat);
-                delete rooms[data.roomiid].streams[data.streamid].conns[data.connid];
-            } else {
-                for (let connid in rooms[data.roomiid].streams[data.streamid].conns) {
-                    let conn = rooms[data.roomiid].streams[data.streamid].conns[connid];
-                    delete transform[conn.audioConsumerId];
-                    delete transform[conn.videoConsumerId];
-                    delete transform[conn.transportId];
-                    clearInterval(conn.getStat);
+                if (data.connid) {
+                    let audioConsumerId = rooms[data.roomiid].streams[data.streamid].conns[data.connid].audioConsumerId;
+                    let videoConsumerId = rooms[data.roomiid].streams[data.streamid].conns[data.connid].videoConsumerId;
+                    let transportId = rooms[data.roomiid].streams[data.streamid].conns[data.connid].transportId;
+    
+                    delete transform[audioConsumerId];
+                    delete transform[videoConsumerId];
+                    delete transform[transportId];
+                    clearInterval(rooms[data.roomiid].streams[data.streamid].conns[data.connid].getStat);
                     delete rooms[data.roomiid].streams[data.streamid].conns[data.connid];
+                } else {
+                    for (let connid in rooms[data.roomiid].streams[data.streamid].conns) {
+                        let conn = rooms[data.roomiid].streams[data.streamid].conns[connid];
+                        delete transform[conn.audioConsumerId];
+                        delete transform[conn.videoConsumerId];
+                        delete transform[conn.transportId];
+                        clearInterval(conn.getStat);
+                        delete rooms[data.roomiid].streams[data.streamid].conns[data.connid];
+                    }
+    
+                    let audioProducerId = rooms[data.roomiid].streams[data.streamid].audioProducerId;
+                    let videoProducerId = rooms[data.roomiid].streams[data.streamid].videoProducerId;
+                    let transportId = rooms[data.roomiid].streams[data.streamid].transportId;
+    
+                    delete transform[audioProducerId];
+                    delete transform[videoProducerId];
+                    delete transform[transportId];
+                    clearInterval(rooms[data.roomiid].streams[data.streamid].getStat);
+                    delete rooms[data.roomiid].streams[data.streamid];
                 }
-
-                let audioProducerId = rooms[data.roomiid].streams[data.streamid].audioProducerId;
-                let videoProducerId = rooms[data.roomiid].streams[data.streamid].videoProducerId;
-                let transportId = rooms[data.roomiid].streams[data.streamid].transportId;
-
-                delete transform[audioProducerId];
-                delete transform[videoProducerId];
-                delete transform[transportId];
-                clearInterval(rooms[data.roomiid].streams[data.streamid].getStat);
-                delete rooms[data.roomiid].streams[data.streamid];
+                let res = {
+                    roomiid: data.roomiid,
+                    playerid: data.playerid,
+                    streamid: data.streamid,
+                    connid: data.connid,
+                }
+                ws.sendmsg("on-pc-close", res);
             }
-            let res = {
-                roomiid: data.roomiid,
-                playerid: data.playerid,
-                streamid: data.streamid,
-                connid: data.connid,
-            }
-            ws.sendmsg("on-pc-close", res);
         }
+    } catch (error) {
+        logger.error(err);
     }
 }
 
