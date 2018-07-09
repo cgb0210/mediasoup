@@ -7,9 +7,10 @@ const logger = new Logger();
 const REQUEST_TIMEOUT = 5000;
 
 class Channel {
-  constructor(socket, notify) {
+  constructor(socket, notify, restart) {
     this.socket = socket;
     this.notify = notify;
+    this.restart = restart;
     this.pendingSent = new Map();
     this.recvBuffer = null;
     this.id = 0;
@@ -36,17 +37,17 @@ class Channel {
             logger.info('<<---', nsPayload.toString());
             break;
 
-          // 68 = 'D' (a debug log).
+            // 68 = 'D' (a debug log).
           case 68:
             logger.debug(`channel`, nsPayload.toString('utf8', 1));
             break;
 
-          // 87 = 'W' (a warning log).
+            // 87 = 'W' (a warning log).
           case 87:
             logger.warn(`channel`, nsPayload.toString('utf8', 1));
             break;
 
-          // 69 = 'E' (an error log).
+            // 69 = 'E' (an error log).
           case 69:
             logger.error(`channel`, nsPayload.toString('utf8', 1));
             break;
@@ -62,6 +63,7 @@ class Channel {
 
     this.socket.on('end', () => {
       logger.error('channel ended by the other side');
+      restart();
     });
 
     this.socket.on('error', (error) => {
@@ -73,7 +75,12 @@ class Channel {
     this.id = this.id + 1;
 
     const id = this.id;
-    const request = { id, method, internal, data };
+    const request = {
+      id,
+      method,
+      internal,
+      data
+    };
     const ns = netstring.nsWrite(JSON.stringify(request));
 
     try {
@@ -84,8 +91,7 @@ class Channel {
     }
 
     return new Promise((pResolve, pReject) => {
-      const sent =
-      {
+      const sent = {
         resolve: (data2) => {
           if (!this.pendingSent.delete(id)) {
             return;

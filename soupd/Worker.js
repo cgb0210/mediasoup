@@ -48,7 +48,7 @@ class Worker {
     });
 
     this.child.on('exit', (code, signal) => {
-      logger.error('child process exited code & signal:', code + `` + signal);
+      logger.error('child process exited code & signal:', code + ' ' + signal);
     });
 
     this.child.on('error', (error) => {

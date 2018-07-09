@@ -30,28 +30,21 @@ let sdpTemplate = {
         semantic: "WMS",
         token: "*"
     },
-    groups: [
-        {
-            type: "BUNDLE",
-            mids: ""
-        }
-    ],
-    media: [
-        {
-            rtp: [
-                {
-                    payload: 0,
-                    codec: "opus",
-                    rate: 48000,
-                    encoding: 2
-                }
-            ],
-            fmtp: [
-                {
-                    payload: 0,
-                    config: "useinbandfec=1"
-                }
-            ],
+    groups: [{
+        type: "BUNDLE",
+        mids: ""
+    }],
+    media: [{
+            rtp: [{
+                payload: 0,
+                codec: "opus",
+                rate: 48000,
+                encoding: 2
+            }],
+            fmtp: [{
+                payload: 0,
+                config: "useinbandfec=1"
+            }],
             type: "audio",
             port: 7,
             protocol: "RTP/SAVPF",
@@ -60,32 +53,27 @@ let sdpTemplate = {
                 version: 4,
                 ip: "127.0.0.1"
             },
-            ext: [
-                {
-                    value: 1,
-                    uri: "urn:ietf:params:rtp-hdrext:ssrc-audio-level"
-                }
-            ],
+            ext: [{
+                value: 1,
+                uri: "urn:ietf:params:rtp-hdrext:ssrc-audio-level"
+            }],
             setup: "active",
             mid: "",
             direction: "",
             iceUfrag: "",
             icePwd: "",
-            candidates: [
-                {
-                    foundation: "udpcandidate",
-                    component: 1,
-                    transport: "udp",
-                    priority: 1078862079,
-                    ip: "",
-                    port: 0,
-                    type: "host"
-                }
-            ],
+            candidates: [{
+                foundation: "udpcandidate",
+                component: 1,
+                transport: "udp",
+                priority: 1078862079,
+                ip: "",
+                port: 0,
+                type: "host"
+            }],
             endOfCandidates: "end-of-candidates",
             iceOptions: "renomination",
-            ssrcs: [
-                {
+            ssrcs: [{
                     id: 0,
                     attribute: "msid",
                     value: ""
@@ -110,8 +98,7 @@ let sdpTemplate = {
             rtcpRsize: "rtcp-rsize"
         },
         {
-            rtp: [
-                {
+            rtp: [{
                     payload: 0,
                     codec: "H264",
                     rate: 90000
@@ -122,8 +109,7 @@ let sdpTemplate = {
                     rate: 90000
                 }
             ],
-            fmtp: [
-                {
+            fmtp: [{
                     payload: 0,
                     config: "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f"
                 },
@@ -140,8 +126,7 @@ let sdpTemplate = {
                 version: 4,
                 ip: "127.0.0.1"
             },
-            rtcpFb: [
-                {
+            rtcpFb: [{
                     payload: 0,
                     type: "goog-remb",
                     subtype: ""
@@ -162,8 +147,7 @@ let sdpTemplate = {
                     subtype: "pli"
                 }
             ],
-            ext: [
-                {
+            ext: [{
                     value: 2,
                     uri: "urn:ietf:params:rtp-hdrext:toffset"
                 },
@@ -181,21 +165,18 @@ let sdpTemplate = {
             direction: "",
             iceUfrag: "",
             icePwd: "",
-            candidates: [
-                {
-                    foundation: "udpcandidate",
-                    component: 1,
-                    transport: "udp",
-                    priority: 1078862079,
-                    ip: "",
-                    port: 0,
-                    type: "host"
-                }
-            ],
+            candidates: [{
+                foundation: "udpcandidate",
+                component: 1,
+                transport: "udp",
+                priority: 1078862079,
+                ip: "",
+                port: 0,
+                type: "host"
+            }],
             endOfCandidates: "end-of-candidates",
             iceOptions: "renomination",
-            ssrcs: [
-                {
+            ssrcs: [{
                     id: 0,
                     attribute: "msid",
                     value: ""
@@ -236,12 +217,10 @@ let sdpTemplate = {
                     value: ""
                 }
             ],
-            ssrcGroups: [
-                {
-                    semantics: "FID",
-                    ssrcs: ""
-                }
-            ],
+            ssrcGroups: [{
+                semantics: "FID",
+                ssrcs: ""
+            }],
             rtcpMux: "rtcp-mux",
             rtcpRsize: "rtcp-rsize"
         }
@@ -259,6 +238,7 @@ function parseSdp(sdpStr) {
         audio: {
             ssrc: '',
             payloadType: 0,
+            bandWidth: 0,
             mid: '',
             streamId: '',
             trackId: ''
@@ -266,6 +246,7 @@ function parseSdp(sdpStr) {
         video: {
             ssrc: '',
             payloadType: 0,
+            bandWidth: 0,
             mid: '',
             streamId: '',
             trackId: '',
@@ -289,6 +270,11 @@ function parseSdp(sdpStr) {
         switch (media.type) {
             case 'audio':
                 res.audio.mid = media.mid;
+                if (media.bandwidth) {
+                    if (media.bandwidth[0].type == 'AS' && typeof (media.bandwidth[0].limit) == 'number') {
+                        res.audio.bandWidth = media.bandwidth[0].limit;
+                    }
+                }
                 for (let rtp of media.rtp) {
                     if (rtp.codec == 'opus') {
                         res.audio.payloadType = rtp.payload;
@@ -317,6 +303,11 @@ function parseSdp(sdpStr) {
                 break;
             case 'video':
                 res.video.mid = media.mid;
+                if (media.bandwidth) {
+                    if (media.bandwidth[0].type == 'AS' && typeof (media.bandwidth[0].limit) == 'number') {
+                        res.video.bandWidth = media.bandwidth[0].limit;
+                    }
+                }
                 for (let rtp of media.rtp) {
                     if (rtp.codec == 'H264') {
                         res.video.payloadType = rtp.payload;
@@ -465,8 +456,7 @@ function encodeSdp(params) {
             delete media.ssrcGroups;
 
             if (!params.isChrome) {
-                media.ext = [
-                    {
+                media.ext = [{
                         value: 5,
                         uri: "urn:ietf:params:rtp-hdrext:toffset"
                     },
@@ -516,12 +506,11 @@ function encodeSdp(params) {
     return sdpStr
 }
 
-const genNumber = randomNumber.generator(
-    {
-        min: 10000000,
-        max: 99999999,
-        integer: true
-    });
+const genNumber = randomNumber.generator({
+    min: 10000000,
+    max: 99999999,
+    integer: true
+});
 
 exports.parseSdp = parseSdp;
 exports.encodeSdp = encodeSdp;

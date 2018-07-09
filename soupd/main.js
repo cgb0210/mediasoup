@@ -19,13 +19,13 @@ let id = uuidv1();
 let rooms = {};
 let transform = {};
 
-let worker = new Worker(config.minport, config.maxport)
-let channel = new Channel(worker.child.stdio[CHANNEL_FD], notify)
+let worker = new Worker(config.minport, config.maxport);
+let channel = new Channel(worker.child.stdio[CHANNEL_FD], notify, restart);
 
 function Socket() {
     this.reconnectInterval = 1000;
 }
-Socket.prototype.open = function(address) {
+Socket.prototype.open = function (address) {
     this.address = address;
     this.instance = new WebSocket(this.address);
     this.instance.on('close', (code, reason) => {
@@ -55,10 +55,10 @@ Socket.prototype.open = function(address) {
         this.onopen();
     });
 }
-Socket.prototype.close = function(code, data) {
+Socket.prototype.close = function (code, data) {
     this.instance.close(code, data);
 }
-Socket.prototype.sendmsg = function(key, data) {
+Socket.prototype.sendmsg = function (key, data) {
     var value = JSON.stringify(data);
     var msg = key + '=' + value;
     try {
@@ -71,29 +71,29 @@ Socket.prototype.sendmsg = function(key, data) {
     // logger.info("rooms", rooms);
     // logger.info("transform", transform);
 }
-Socket.prototype.reconnect = function() {
+Socket.prototype.reconnect = function () {
     this.instance.removeAllListeners();
     var that = this;
-    setTimeout(function() {
+    setTimeout(function () {
         that.open(that.address);
     }, this.reconnectInterval);
 }
 
 let ws = new Socket();
 ws.open('ws://localhost:5003/erizolpc');
-ws.onopen = function() {
+ws.onopen = function () {
     let req = {
         erizodid: id,
     };
     this.sendmsg('handshake', req);
 }
-ws.onerror = function(err) {
+ws.onerror = function (err) {
     logger.info("onerror", err);
 }
-ws.onclose = function(code, reason) {
+ws.onclose = function (code, reason) {
     logger.info("onclose code & error", code + ' ' + reason);
 }
-ws.onmessage = function(data) {
+ws.onmessage = function (data) {
     logger.info('recv', data);
     if (typeof data == 'string') {
         var index = data.indexOf('=');
@@ -111,6 +111,7 @@ ws.onmessage = function(data) {
 }
 
 let connect = false;
+
 function procmsg(key, data) {
     switch (key) {
         case 'handshake-res':
@@ -186,52 +187,98 @@ function notify(msg) {
                 }
             }
         }
-    
+
         if (msg.event == "close") {
             let data = transform[msg.targetId];
             if (data) {
                 if (data.connid) {
-                    let audioConsumerId = rooms[data.roomiid].streams[data.streamid].conns[data.connid].audioConsumerId;
-                    let videoConsumerId = rooms[data.roomiid].streams[data.streamid].conns[data.connid].videoConsumerId;
-                    let transportId = rooms[data.roomiid].streams[data.streamid].conns[data.connid].transportId;
-    
-                    delete transform[audioConsumerId];
-                    delete transform[videoConsumerId];
-                    delete transform[transportId];
-                    clearInterval(rooms[data.roomiid].streams[data.streamid].conns[data.connid].getStat);
-                    delete rooms[data.roomiid].streams[data.streamid].conns[data.connid];
+                    let room = rooms[data.roomiid];
+                    if (!room)
+                        return
+                    let stream = room.streams[data.streamid];
+                    if (!stream)
+                        return
+                    let conn = stream.conns[data.connid];
+                    if (!conn)
+                        return
+                    delete transform[conn.audioConsumerId];
+                    delete transform[conn.videoConsumerId];
+                    delete transform[conn.transportId];
+                    clearInterval(conn.getStat);
+                    delete stream.conns[data.connid];
                 } else {
-                    for (let connid in rooms[data.roomiid].streams[data.streamid].conns) {
-                        let conn = rooms[data.roomiid].streams[data.streamid].conns[connid];
+                    let room = rooms[data.roomiid];
+                    if (!room)
+                        return
+                    let stream = room.streams[data.streamid];
+                    if (!stream)
+                        return
+                    for (let connid in stream.conns) {
+                        let conn = stream.conns[connid];
+                        if (!conn)
+                            continue
                         delete transform[conn.audioConsumerId];
                         delete transform[conn.videoConsumerId];
                         delete transform[conn.transportId];
                         clearInterval(conn.getStat);
-                        delete rooms[data.roomiid].streams[data.streamid].conns[data.connid];
                     }
-    
-                    let audioProducerId = rooms[data.roomiid].streams[data.streamid].audioProducerId;
-                    let videoProducerId = rooms[data.roomiid].streams[data.streamid].videoProducerId;
-                    let transportId = rooms[data.roomiid].streams[data.streamid].transportId;
-    
-                    delete transform[audioProducerId];
-                    delete transform[videoProducerId];
-                    delete transform[transportId];
-                    clearInterval(rooms[data.roomiid].streams[data.streamid].getStat);
-                    delete rooms[data.roomiid].streams[data.streamid];
+
+                    delete transform[stream.audioProducerId];
+                    delete transform[stream.videoProducerId];
+                    delete transform[stream.transportId];
+                    clearInterval(stream.getStat);
+                    delete room.streams[data.streamid];
                 }
+
                 let res = {
                     roomiid: data.roomiid,
                     playerid: data.playerid,
                     streamid: data.streamid,
-                    connid: data.connid,
+                    connid: data.connid
                 }
                 ws.sendmsg("on-pc-close", res);
             }
         }
-    } catch (error) {
+    } catch (err) {
         logger.error(err);
     }
+}
+
+function restart(msg) {
+    for (let roomiid in rooms) {
+        let room = rooms[roomiid];
+        if (!room)
+            continue
+        for (let streamid in room.streams) {
+            let stream = room.streams[streamid];
+            if (!stream)
+                continue
+            for (let connid in stream.conns) {
+                let conn = stream.conns[connid];
+                if (!conn)
+                    continue
+                clearInterval(conn.getStat);
+            }
+            clearInterval(stream.getStat);
+            let data = transform[stream.transportId];
+            if (data) {
+                let res = {
+                    roomiid: data.roomiid,
+                    playerid: data.playerid,
+                    streamid: data.streamid
+                }
+                ws.sendmsg("on-pc-close", res);
+            }
+        }
+    }
+
+    logger.info("mediasoup restart");
+
+    rooms = {};
+    transform = {};
+
+    worker = new Worker(config.minport, config.maxport);
+    channel = new Channel(worker.child.stdio[CHANNEL_FD], notify, restart);
 }
 
 async function pub(msg) {
@@ -324,26 +371,37 @@ async function pub(msg) {
         kind: 'audio',
         rtpParameters: {
             muxId: null,
-            codecs: [
-                {
-                    name: 'opus',
-                    mimeType: 'audio/opus',
-                    clockRate: 48000,
-                    payloadType: pubData.audio.payloadType,
-                    channels: 2,
-                    rtcpFeedback: [],
-                    parameters: { useinbandfec: 1 }
+            codecs: [{
+                name: 'opus',
+                mimeType: 'audio/opus',
+                clockRate: 48000,
+                payloadType: pubData.audio.payloadType,
+                channels: 2,
+                rtcpFeedback: [],
+                parameters: {
+                    useinbandfec: 1
                 }
-            ],
-            headerExtensions: [
-                { uri: 'urn:ietf:params:rtp-hdrext:ssrc-audio-level', id: 1 }
-            ],
-            encodings: [{ ssrc: pubData.audio.ssrc }],
-            rtcp: { cname: pubData.cname, reducedSize: true, mux: true }
+            }],
+            headerExtensions: [{
+                uri: 'urn:ietf:params:rtp-hdrext:ssrc-audio-level',
+                id: 1
+            }],
+            encodings: [{
+                ssrc: pubData.audio.ssrc
+            }],
+            rtcp: {
+                cname: pubData.cname,
+                reducedSize: true,
+                mux: true
+            }
         },
         rtpMapping: {
-            codecPayloadTypes: [[pubData.audio.payloadType, pubData.audio.payloadType]],
-            headerExtensionIds: [[1, 1]]
+            codecPayloadTypes: [
+                [pubData.audio.payloadType, pubData.audio.payloadType]
+            ],
+            headerExtensionIds: [
+                [1, 1]
+            ]
         },
         paused: false
     }
@@ -352,22 +410,40 @@ async function pub(msg) {
         kind: 'video',
         rtpParameters: {
             muxId: null,
-            codecs: [
-                {
-                    name: 'H264',
-                    mimeType: 'video/H264',
-                    clockRate: 90000,
-                    payloadType: pubData.video.payloadType,
-                    rtcpFeedback: [{ type: 'goog-remb' }, { type: 'ccm', parameter: 'fir' }, { type: 'nack' }, { type: 'nack', parameter: 'pli' }],
-                    parameters: { 'packetization-mode': 1 }
+            codecs: [{
+                name: 'H264',
+                mimeType: 'video/H264',
+                clockRate: 90000,
+                payloadType: pubData.video.payloadType,
+                rtcpFeedback: [{
+                    type: 'goog-remb'
+                }, {
+                    type: 'ccm',
+                    parameter: 'fir'
+                }, {
+                    type: 'nack'
+                }, {
+                    type: 'nack',
+                    parameter: 'pli'
+                }],
+                parameters: {
+                    'packetization-mode': 1
                 }
-            ],
+            }],
             headerExtensions: [],
-            encodings: [{ ssrc: pubData.video.ssrc }],
-            rtcp: { cname: pubData.cname, reducedSize: true, mux: true }
+            encodings: [{
+                ssrc: pubData.video.ssrc
+            }],
+            rtcp: {
+                cname: pubData.cname,
+                reducedSize: true,
+                mux: true
+            }
         },
         rtpMapping: {
-            codecPayloadTypes: [[pubData.video.payloadType, pubData.video.payloadType]],
+            codecPayloadTypes: [
+                [pubData.video.payloadType, pubData.video.payloadType]
+            ],
             headerExtensionIds: []
         },
         paused: false
@@ -383,25 +459,49 @@ async function pub(msg) {
             mimeType: 'video/rtx',
             clockRate: 90000,
             payloadType: pubData.video.rtx.payloadType,
-            parameters: { apt: pubData.video.payloadType }
+            parameters: {
+                apt: pubData.video.payloadType
+            }
         }
-        videodata.rtpParameters.encodings[0].rtx = { ssrc: pubData.video.rtx.ssrc }
+        videodata.rtpParameters.encodings[0].rtx = {
+            ssrc: pubData.video.rtx.ssrc
+        }
         videodata.rtpMapping.codecPayloadTypes[1] = [pubData.video.rtx.payloadType, pubData.video.rtx.payloadType];
 
-        videodata.rtpParameters.headerExtensions = [
-            { uri: 'urn:ietf:params:rtp-hdrext:toffset', id: 2 },
-            { uri: 'http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time', id: 3 },
-            { uri: 'urn:3gpp:video-orientation', id: 4 }
+        videodata.rtpParameters.headerExtensions = [{
+                uri: 'urn:ietf:params:rtp-hdrext:toffset',
+                id: 2
+            },
+            {
+                uri: 'http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time',
+                id: 3
+            },
+            {
+                uri: 'urn:3gpp:video-orientation',
+                id: 4
+            }
         ]
 
-        videodata.rtpMapping.headerExtensionIds = [[2, 2], [3, 3], [4, 4]];
+        videodata.rtpMapping.headerExtensionIds = [
+            [2, 2],
+            [3, 3],
+            [4, 4]
+        ];
     } else {
-        videodata.rtpParameters.headerExtensions = [
-            { uri: 'urn:ietf:params:rtp-hdrext:toffset', id: 5 },
-            { uri: 'http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time', id: 4 }
+        videodata.rtpParameters.headerExtensions = [{
+                uri: 'urn:ietf:params:rtp-hdrext:toffset',
+                id: 5
+            },
+            {
+                uri: 'http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time',
+                id: 4
+            }
         ]
 
-        videodata.rtpMapping.headerExtensionIds = [[5, 2], [4, 3]];
+        videodata.rtpMapping.headerExtensionIds = [
+            [5, 2],
+            [4, 3]
+        ];
     }
 
     if (needCreateRouter) {
@@ -453,16 +553,26 @@ async function pub(msg) {
     }
 
     let sdp = utils.encodeSdp(params);
-    let maxBitrate = msg.maxBitrate;
-    if (maxBitrate) {
-        maxBitrate = maxBitrate * 1000;
-        if (maxBitrate <= 0 || maxBitrate > MaxBitrate) {
-            maxBitrate = MaxBitrate;
+
+    let maxBitrate = MaxBitrate;
+    let temp = msg.maxBitrate;
+    if (temp > 0) {
+        temp = temp * 1000;
+        if (temp < maxBitrate) {
+            maxBitrate = temp;
         }
-    } else {
-        maxBitrate = MaxBitrate;
     }
-    await channel.request("transport.setMaxBitrate", transportIntr, { bitrate: maxBitrate });
+    temp = pubData.audio.bandWidth + pubData.video.bandWidth;
+    if (temp > 0) {
+        temp = temp * 1000;
+        if (temp < maxBitrate) {
+            maxBitrate = temp;
+        }
+    }
+
+    await channel.request("transport.setMaxBitrate", transportIntr, {
+        bitrate: maxBitrate
+    });
     await channel.request("transport.setRemoteDtlsParameters", transportIntr, dtlsdata);
     if (hasAudio) {
         await channel.request("router.createProducer", audioIntr, audiodata);
@@ -507,7 +617,7 @@ async function pub(msg) {
                     let res = {
                         roomiid: msg.roomiid,
                         playerid: msg.playerid,
-                        streamid: msg.streamid,
+                        streamid: msg.streamid
                     }
                     unpub(res);
                     ws.sendmsg("on-pc-close", res);
@@ -527,9 +637,8 @@ async function pub(msg) {
         transportId: transportId,
         pubData: pubData,
         getStat: getStat,
-        conns: {},
+        conns: {}
     }
-
     ws.sendmsg("webrtc-answer", res);
 }
 
@@ -620,41 +729,64 @@ async function sub(msg) {
     let enableaudio = {
         rtpParameters: {
             muxId: null,
-            codecs: [
-                {
-                    name: 'opus',
-                    mimeType: 'audio/opus',
-                    clockRate: 48000,
-                    payloadType: subData.audio.payloadType,
-                    channels: 2,
-                    rtcpFeedback: [],
-                    parameters: { useinbandfec: 1 }
+            codecs: [{
+                name: 'opus',
+                mimeType: 'audio/opus',
+                clockRate: 48000,
+                payloadType: subData.audio.payloadType,
+                channels: 2,
+                rtcpFeedback: [],
+                parameters: {
+                    useinbandfec: 1
                 }
-            ],
-            headerExtensions: [
-                { uri: 'urn:ietf:params:rtp-hdrext:ssrc-audio-level', id: 1 }
-            ],
-            encodings: [{ ssrc: pubData.audio.ssrc }],
-            rtcp: { cname: pubData.cname, reducedSize: true, mux: true }
+            }],
+            headerExtensions: [{
+                uri: 'urn:ietf:params:rtp-hdrext:ssrc-audio-level',
+                id: 1
+            }],
+            encodings: [{
+                ssrc: pubData.audio.ssrc
+            }],
+            rtcp: {
+                cname: pubData.cname,
+                reducedSize: true,
+                mux: true
+            }
         }
     }
 
     let enablevideo = {
         rtpParameters: {
             muxId: null,
-            codecs: [
-                {
-                    name: 'H264',
-                    mimeType: 'video/H264',
-                    clockRate: 90000,
-                    payloadType: subData.video.payloadType,
-                    rtcpFeedback: [{ type: 'goog-remb' }, { type: 'ccm', parameter: 'fir' }, { type: 'nack' }, { type: 'nack', parameter: 'pli' }],
-                    parameters: { 'packetization-mode': 1 }
+            codecs: [{
+                name: 'H264',
+                mimeType: 'video/H264',
+                clockRate: 90000,
+                payloadType: subData.video.payloadType,
+                rtcpFeedback: [{
+                    type: 'goog-remb'
+                }, {
+                    type: 'ccm',
+                    parameter: 'fir'
+                }, {
+                    type: 'nack'
+                }, {
+                    type: 'nack',
+                    parameter: 'pli'
+                }],
+                parameters: {
+                    'packetization-mode': 1
                 }
-            ],
+            }],
             headerExtensions: [],
-            encodings: [{ ssrc: pubData.video.ssrc }],
-            rtcp: { cname: pubData.cname, reducedSize: true, mux: true }
+            encodings: [{
+                ssrc: pubData.video.ssrc
+            }],
+            rtcp: {
+                cname: pubData.cname,
+                reducedSize: true,
+                mux: true
+            }
         }
     }
 
@@ -669,21 +801,38 @@ async function sub(msg) {
             mimeType: 'video/rtx',
             clockRate: 90000,
             payloadType: subData.video.rtx.payloadType,
-            parameters: { apt: subData.video.payloadType }
+            parameters: {
+                apt: subData.video.payloadType
+            }
         }
-        enablevideo.rtpParameters.encodings[0].rtx = { ssrc: pubData.video.rtx.ssrc }
+        enablevideo.rtpParameters.encodings[0].rtx = {
+            ssrc: pubData.video.rtx.ssrc
+        }
     }
 
     if (isChrome) {
-        enablevideo.rtpParameters.headerExtensions = [
-            { uri: 'urn:ietf:params:rtp-hdrext:toffset', id: 2 },
-            { uri: 'http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time', id: 3 },
-            { uri: 'urn:3gpp:video-orientation', id: 4 }
+        enablevideo.rtpParameters.headerExtensions = [{
+                uri: 'urn:ietf:params:rtp-hdrext:toffset',
+                id: 2
+            },
+            {
+                uri: 'http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time',
+                id: 3
+            },
+            {
+                uri: 'urn:3gpp:video-orientation',
+                id: 4
+            }
         ]
     } else {
-        enablevideo.rtpParameters.headerExtensions = [
-            { uri: 'urn:ietf:params:rtp-hdrext:toffset', id: 5 },
-            { uri: 'http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time', id: 4 },
+        enablevideo.rtpParameters.headerExtensions = [{
+                uri: 'urn:ietf:params:rtp-hdrext:toffset',
+                id: 5
+            },
+            {
+                uri: 'http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time',
+                id: 4
+            },
         ]
     }
 
@@ -810,58 +959,60 @@ async function sub(msg) {
         videoConsumerId: videoConsumerId,
         transportId: transportId,
         subData: subData,
-        getStat: getStat,
-        time: new Date().getTime()
+        getStat: getStat
     }
-
     ws.sendmsg("webrtc-answer", res);
 }
 
 async function unpub(msg) {
-    for (let connid in rooms[msg.roomiid].streams[msg.streamid].conns) {
-        let conn = rooms[msg.roomiid].streams[msg.streamid].conns[connid];
+    let room = rooms[msg.roomiid];
+    if (!room)
+        return
+    let stream = room.streams[msg.streamid];
+    if (!stream)
+        return
+    for (let connid in stream.conns) {
+        let conn = stream.conns[connid];
+        if (!conn)
+            continue
         delete transform[conn.audioConsumerId];
         delete transform[conn.videoConsumerId];
         delete transform[conn.transportId];
         clearInterval(conn.getStat);
-        delete rooms[msg.roomiid].streams[msg.streamid].conns[msg.connid];
     }
 
-    let routerId = rooms[msg.roomiid].routerId;
-    let audioProducerId = rooms[msg.roomiid].streams[msg.streamid].audioProducerId;
-    let videoProducerId = rooms[msg.roomiid].streams[msg.streamid].videoProducerId;
-    let transportId = rooms[msg.roomiid].streams[msg.streamid].transportId;
-
-    delete transform[audioProducerId];
-    delete transform[videoProducerId];
-    delete transform[transportId];
-    clearInterval(rooms[msg.roomiid].streams[msg.streamid].getStat);
-    delete rooms[msg.roomiid].streams[msg.streamid];
+    delete transform[stream.audioProducerId];
+    delete transform[stream.videoProducerId];
+    delete transform[stream.transportId];
+    clearInterval(stream.getStat);
+    delete room.streams[msg.streamid];
 
     let transportIntr = {
-        routerId: routerId,
-        transportId: transportId
+        routerId: room.routerId,
+        transportId: stream.transportId
     }
-
     channel.request("transport.close", transportIntr, {})
 }
 
 async function unsub(msg) {
-    let routerId = rooms[msg.roomiid].routerId;
-    let audioConsumerId = rooms[msg.roomiid].streams[msg.streamid].conns[msg.connid].audioConsumerId;
-    let videoConsumerId = rooms[msg.roomiid].streams[msg.streamid].conns[msg.connid].videoConsumerId;
-    let transportId = rooms[msg.roomiid].streams[msg.streamid].conns[msg.connid].transportId;
-
-    delete transform[audioConsumerId];
-    delete transform[videoConsumerId];
-    delete transform[transportId];
-    clearInterval(rooms[msg.roomiid].streams[msg.streamid].conns[msg.connid].getStat);
-    delete rooms[msg.roomiid].streams[msg.streamid].conns[msg.connid];
+    let room = rooms[msg.roomiid];
+    if (!room)
+        return
+    let stream = room.streams[msg.streamid];
+    if (!stream)
+        return
+    let conn = stream.conns[msg.connid];
+    if (!conn)
+        return
+    delete transform[conn.audioConsumerId];
+    delete transform[conn.videoConsumerId];
+    delete transform[conn.transportId];
+    clearInterval(conn.getStat);
+    delete stream.conns[msg.connid];
 
     let transportIntr = {
-        routerId: routerId,
-        transportId: transportId
+        routerId: room.routerId,
+        transportId: conn.transportId
     }
-
     channel.request("transport.close", transportIntr, {})
 }
