@@ -860,7 +860,11 @@ namespace RTC
 
 			// Process the handshake just once (ignore if DTLS renegotiation).
 			if (!wasHandshakeDone)
+			{
 				ProcessHandshake();
+				if (this->state == DtlsState::FAILED)
+					return false;
+			}
 		}
 		// Check if the peer sent close alert or a fatal error happened.
 		else if (((SSL_get_shutdown(this->ssl) & SSL_RECEIVED_SHUTDOWN) != 0) || err == SSL_ERROR_SSL || err == SSL_ERROR_SYSCALL)
