@@ -63,11 +63,11 @@ class Channel {
 
     this.socket.on('end', () => {
       logger.error('channel ended by the other side');
-      restart();
     });
 
     this.socket.on('error', (error) => {
       logger.error('channel error:', error);
+      restart();
     });
   }
 

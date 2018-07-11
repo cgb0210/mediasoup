@@ -640,6 +640,14 @@ async function pub(msg) {
         conns: {}
     }
     ws.sendmsg("webrtc-answer", res);
+
+    logger.info('add pub', JSON.stringify({
+        roomiid: msg.roomiid,
+        streamid: msg.streamid,
+        audioConsumerId: audioConsumerId,
+        videoConsumerId: videoConsumerId,
+        transportId: transportId
+    }));
 }
 
 async function sub(msg) {
@@ -962,9 +970,18 @@ async function sub(msg) {
         getStat: getStat
     }
     ws.sendmsg("webrtc-answer", res);
+
+    logger.info('add sub', JSON.stringify({
+        roomiid: msg.roomiid,
+        streamid: msg.streamid,
+        connid: msg.connid,
+        audioConsumerId: audioConsumerId,
+        videoConsumerId: videoConsumerId,
+        transportId: transportId
+    }));
 }
 
-async function unpub(msg) {
+function unpub(msg) {
     let room = rooms[msg.roomiid];
     if (!room)
         return
@@ -991,10 +1008,10 @@ async function unpub(msg) {
         routerId: room.routerId,
         transportId: stream.transportId
     }
-    channel.request("transport.close", transportIntr, {})
+    channel.request("transport.close", transportIntr, {});
 }
 
-async function unsub(msg) {
+function unsub(msg) {
     let room = rooms[msg.roomiid];
     if (!room)
         return
@@ -1014,5 +1031,20 @@ async function unsub(msg) {
         routerId: room.routerId,
         transportId: conn.transportId
     }
-    channel.request("transport.close", transportIntr, {})
+    channel.request("transport.close", transportIntr, {});
 }
+
+process.on('exit', (code) => {
+    ws.sendmsg("disconnect", {});
+    console.log(`pili-soupd exit：${code}`);
+});
+
+process.on('SIGINT', () => {
+    console.log('Received SIGINT.');
+    process.exit(-1);
+});
+
+process.once('SIGTERM', function (code) {
+    console.log('Received SIGINT.');
+    process.exit(-1);
+});
