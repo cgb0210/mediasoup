@@ -568,15 +568,15 @@ class Server {
               },
               audio: {
                 ssrc: pubData.audio.ssrc,
-                streamId: pubData.audio.streamId,
-                trackId: pubData.audio.trackId,
+                streamId: 'transport-'+transportId,
+                trackId: 'consumer-audio-'+audioConsumerId,
                 payloadType: subData.audio.payloadType,
                 mid: subData.audio.mid
               },
               video: {
                 ssrc: pubData.video.ssrc,
-                streamId: pubData.video.streamId,
-                trackId: pubData.video.trackId,
+                streamId: 'transport-'+transportId,
+                trackId: 'consumer-video-'+videoConsumerId,
                 payloadType: subData.video.payloadType,
                 mid: subData.video.mid,
               },
@@ -776,15 +776,15 @@ class Server {
               },
               audio: {
                 ssrc: pubData.audio.ssrc,
-                streamId: pubData.audio.streamId,
-                trackId: pubData.audio.trackId,
+                streamId: 'transport-'+transportId,
+                trackId: 'consumer-audio-'+audioConsumerId,
                 payloadType: subData.audio.payloadType,
                 mid: subData.audio.mid
               },
               video: {
                 ssrc: pubData.video.ssrc,
-                streamId: pubData.video.streamId,
-                trackId: pubData.video.trackId,
+                streamId: 'transport-'+transportId,
+                trackId: 'consumer-video-'+videoConsumerId,
                 payloadType: subData.video.payloadType,
                 mid: subData.video.mid,
               },
