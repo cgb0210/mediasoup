@@ -318,6 +318,9 @@ namespace RTC
 				static const Json::StaticString JsonStringPaused{ "paused" };
 				static const Json::StaticString JsonStringCodecPayloadTypes{ "codecPayloadTypes" };
 				static const Json::StaticString JsonStringHeaderExtensionIds{ "headerExtensionIds" };
+				static const Json::StaticString JsonStringPubAudioCodec{ "pubAudioCodec" };
+				static const Json::StaticString JsonStringPubVideoCodec{ "pubVideoCodec" };
+				static const Json::StaticString JsonStringPubRtxCodec{ "pubRtxCodec" };
 
 				uint32_t producerId;
 
@@ -434,6 +437,40 @@ namespace RTC
 				// Create a Producer instance.
 				auto* producer = new RTC::Producer(
 				  this->notifier, producerId, kind, transport, rtpParameters, rtpMapping, paused);
+
+				std::string audioStr = "audio";
+				std::string videoStr = "video";
+
+				if (kindStr.compare(audioStr) == 0)
+				{
+					if (!request->data[JsonStringPubAudioCodec].isUInt())
+					{
+						request->Reject("Request has invalid data.pubAudioCodec");
+
+						return;
+					}
+
+					producer->pubAudioCodec = request->data[JsonStringPubAudioCodec].asUInt();
+				}
+				else if (kindStr.compare(videoStr) == 0)
+				{
+					if (!request->data[JsonStringPubVideoCodec].isUInt())
+					{
+						request->Reject("Request has invalid data.pubVideoCodec");
+
+						return;
+					}
+
+					if (!request->data[JsonStringPubRtxCodec].isUInt())
+					{
+						request->Reject("Request has invalid data.pubRtxCodec");
+
+						return;
+					}
+
+					producer->pubVideoCodec = request->data[JsonStringPubVideoCodec].asUInt();
+					producer->pubRtxCodec   = request->data[JsonStringPubRtxCodec].asUInt();
+				}
 
 				// Add us as listener.
 				producer->AddListener(this);

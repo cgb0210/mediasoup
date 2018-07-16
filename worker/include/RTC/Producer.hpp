@@ -103,6 +103,22 @@ namespace RTC
 		uint32_t producerId{ 0 };
 		RTC::Media::Kind kind;
 
+	public:
+		uint8_t pubAudioCodec{ 0 };
+		uint8_t pubVideoCodec{ 0 };
+		uint8_t pubRtxCodec{ 0 };
+
+		uint8_t* m_pStart;
+		uint16_t m_nLength;
+		int32_t m_nCurrentBit;
+
+	public:
+		uint32_t ReadBit();
+		uint32_t ReadBits(int32_t n);
+		uint32_t ReadExponentialGolombCode();
+		uint32_t ReadSE();
+		void Parse(uint8_t* pStart, uint16_t nLen);
+
 	private:
 		// Passed by argument.
 		Channel::Notifier* notifier{ nullptr };

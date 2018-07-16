@@ -136,6 +136,7 @@ namespace RTC
 		std::tuple<uint64_t, std::vector<uint32_t>> sentRemb;
 		uint64_t lastEffectiveMaxBitrateAt{ 0 };
 		uint64_t lastStunTimestamp{ 0 };
+		uint64_t lastRtcpTimestamp{ 0 };
 	};
 } // namespace RTC
 

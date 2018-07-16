@@ -265,6 +265,7 @@ class Server {
 
             let audiodata = {
               kind: 'audio',
+              pubAudioCodec: pubData.audio.payloadType,
               rtpParameters: {
                 muxId: null,
                 codecs: [
@@ -293,6 +294,8 @@ class Server {
 
             let videodata = {
               kind: 'video',
+              pubVideoCodec: pubData.video.payloadType,
+              pubRtxCodec: pubData.video.rtx.payloadType,
               rtpParameters: {
                 muxId: null,
                 codecs: [

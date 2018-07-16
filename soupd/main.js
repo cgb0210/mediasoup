@@ -369,6 +369,7 @@ async function pub(msg) {
 
     let audiodata = {
         kind: 'audio',
+        pubAudioCodec: pubData.audio.payloadType,
         rtpParameters: {
             muxId: null,
             codecs: [{
@@ -408,6 +409,8 @@ async function pub(msg) {
 
     let videodata = {
         kind: 'video',
+        pubVideoCodec: pubData.video.payloadType,
+        pubRtxCodec: pubData.video.rtx.payloadType,
         rtpParameters: {
             muxId: null,
             codecs: [{
@@ -594,6 +597,7 @@ async function pub(msg) {
     let getStat = setInterval(() => {
         channel.request("transport.getStats", transportIntr, {})
             .then((data) => {
+                setWH(msg, data[0].width, data[0].height);
                 let now = new Date().getTime();
                 let res = {
                     streams: [{
@@ -605,15 +609,18 @@ async function pub(msg) {
                             time: parseInt(now / 1000),
                             elapsed: parseInt((now - start) / 1000),
                             duration: StatInternal,
-                            height: 0,
-                            width: 0
+                            height: data[0].height,
+                            width: data[0].width
                         }
                     }]
                 }
                 bytes = data[0].bytesReceived;
                 ws.sendmsg("on-pc-stat", res);
 
-                if (data[0].lastStunTimestamp && data[0].lastStunTimestamp + StunInternal < parseInt(now / 1000)) {
+                if (data[0].lastStunTimestamp &&
+                    data[0].lastRtcpTimestamp &&
+                    data[0].lastStunTimestamp + StunInternal < parseInt(now / 1000) &&
+                    data[0].lastRtcpTimestamp + StunInternal < parseInt(now / 1000)) {
                     let res = {
                         roomiid: msg.roomiid,
                         playerid: msg.playerid,
@@ -872,15 +879,15 @@ async function sub(msg) {
         },
         audio: {
             ssrc: pubData.audio.ssrc,
-            streamId: 'transport-'+transportId,
-            trackId: 'consumer-audio-'+audioConsumerId,
+            streamId: 'transport-' + transportId,
+            trackId: 'consumer-audio-' + audioConsumerId,
             payloadType: subData.audio.payloadType,
             mid: subData.audio.mid
         },
         video: {
             ssrc: pubData.video.ssrc,
-            streamId: 'transport-'+transportId,
-            trackId: 'consumer-video-'+videoConsumerId,
+            streamId: 'transport-' + transportId,
+            trackId: 'consumer-video-' + videoConsumerId,
             payloadType: subData.video.payloadType,
             mid: subData.video.mid,
         },
@@ -923,6 +930,13 @@ async function sub(msg) {
     let getStat = setInterval(() => {
         channel.request("transport.getStats", transportIntr, {})
             .then((data) => {
+                let wh = getWH(msg);
+                if (!wh) {
+                    wh = {
+                        height: 0,
+                        width: 0
+                    }
+                }
                 let now = new Date().getTime();
                 let res = {
                     streams: [{
@@ -935,15 +949,18 @@ async function sub(msg) {
                             time: parseInt(now / 1000),
                             elapsed: parseInt((now - start) / 1000),
                             duration: StatInternal,
-                            height: 0,
-                            width: 0
+                            height: wh.height,
+                            width: wh.width
                         }
                     }]
                 }
                 bytes = data[0].bytesSent;
                 ws.sendmsg("on-pc-stat", res);
 
-                if (data[0].lastStunTimestamp && data[0].lastStunTimestamp + StunInternal < parseInt(now / 1000)) {
+                if (data[0].lastStunTimestamp &&
+                    data[0].lastRtcpTimestamp &&
+                    data[0].lastStunTimestamp + StunInternal < parseInt(now / 1000) &&
+                    data[0].lastRtcpTimestamp + StunInternal < parseInt(now / 1000)) {
                     let res = {
                         roomiid: msg.roomiid,
                         playerid: msg.playerid,
@@ -1032,6 +1049,32 @@ function unsub(msg) {
         transportId: conn.transportId
     }
     channel.request("transport.close", transportIntr, {});
+}
+
+function setWH(msg, w, h) {
+    let room = rooms[msg.roomiid];
+    if (!room)
+        return
+    let stream = room.streams[msg.streamid];
+    if (!stream)
+        return
+    stream.width = w;
+    stream.height = h;
+}
+
+function getWH(msg, w, h) {
+    let room = rooms[msg.roomiid];
+    if (!room)
+        return
+    let stream = room.streams[msg.streamid];
+    if (!stream)
+        return
+    if (stream.width && stream.width) {
+        return {
+            width: stream.width,
+            height: stream.width
+        }
+    }
 }
 
 process.on('exit', (code) => {

@@ -127,6 +127,8 @@ namespace RTC
 	public:
 		// Passed by argument.
 		uint32_t transportId{ 0 };
+		uint32_t width {0};
+		uint32_t height {0};
 
 	protected:
 		// Passed by argument.
