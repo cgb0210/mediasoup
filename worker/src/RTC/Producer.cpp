@@ -188,7 +188,7 @@ namespace RTC
 
 	uint32_t Producer::ReadBit()
 	{
-		assert(m_nCurrentBit <= m_nLength * 8);
+		MS_ASSERT(m_nCurrentBit <= m_nLength * 8, "parse sps error");
 		int nIndex  = m_nCurrentBit / 8;
 		int nOffset = m_nCurrentBit % 8 + 1;
 
