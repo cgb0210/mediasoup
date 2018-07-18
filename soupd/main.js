@@ -1072,7 +1072,7 @@ function getWH(msg, w, h) {
     if (stream.width && stream.width) {
         return {
             width: stream.width,
-            height: stream.width
+            height: stream.height
         }
     }
 }
