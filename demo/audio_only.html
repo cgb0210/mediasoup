@@ -20,7 +20,7 @@
     <video id="remoteVideo2" autoplay width="400px" height="300px" style="background-color:  gray;"></video>
 
     <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
-    <script>  
+    <script>
         var start = document.getElementById("start");
         var pub = document.getElementById("pub");
         var unpub = document.getElementById("unpub");
@@ -44,10 +44,7 @@
         sub2.disabled = true;
         unsub2.disabled = true;
 
-        // var socket = new WebSocket('ws://192.168.199.110:5012');
-        var socket = new WebSocket('ws://100.100.81.208:5012');
-        // var socket = new WebSocket('ws://123.59.184.112:5012');
-
+        var socket = new WebSocket('ws://localhost:5012');
         socket.addEventListener('open', function (event) {
             console.log('websocket open');
         });
@@ -68,8 +65,8 @@
 
         start.onclick = function (evt) {
             navigator.mediaDevices.getUserMedia({
-                audio: true
-            })
+                    audio: true
+                })
                 .then(
                     function (stream) {
                         localVideo.srcObject = stream;
@@ -114,12 +111,18 @@
             );
 
             pc1.createOffer({
-                offerToReceiveAudio: 0
+                offerToReceiveAudio: 0,
+                offerToReceiveVideo: 0
             }).then(
                 function (desc) {
                     console.log("pc1 sdp", console.log(JSON.stringify(desc)));
                     pc1.setLocalDescription(desc);
-                    socket.send(JSON.stringify({ type: 'pub', data: desc, hasAudio: true, hasVideo: false }));
+                    socket.send(JSON.stringify({
+                        type: 'pub',
+                        data: desc,
+                        hasAudio: true,
+                        hasVideo: false
+                    }));
                 },
                 function (error) {
                     alert('createOffer error');
@@ -146,7 +149,9 @@
             unsub1.disabled = true;
             sub2.disabled = true;
             unsub2.disabled = true;
-            socket.send(JSON.stringify({ type: 'unpub' }));
+            socket.send(JSON.stringify({
+                type: 'unpub'
+            }));
             return false;
         };
 
@@ -173,9 +178,13 @@
             }).then(
                 function (desc) {
                     console.log("pc2 sdp", console.log(JSON.stringify(desc)));
-                    // desc.sdp = desc.sdp.replace(/111/g, '100');
                     pc2.setLocalDescription(desc);
-                    socket.send(JSON.stringify({ type: 'sub1', data: desc, hasAudio: true, hasVideo: false }));
+                    socket.send(JSON.stringify({
+                        type: 'sub1',
+                        data: desc,
+                        hasAudio: true,
+                        hasVideo: false
+                    }));
                 },
                 function (error) {
                     alert('createOffer error');
@@ -199,7 +208,9 @@
             sub1.disabled = false;
             unsub1.disabled = true;
 
-            socket.send(JSON.stringify({ type: 'unsub1' }));
+            socket.send(JSON.stringify({
+                type: 'unsub1'
+            }));
             return false;
         };
 
@@ -226,9 +237,13 @@
             }).then(
                 function (desc) {
                     console.log("pc3 sdp", console.log(JSON.stringify(desc)));
-                    // desc.sdp = desc.sdp.replace(/111/g, '101');
                     pc3.setLocalDescription(desc);
-                    socket.send(JSON.stringify({ type: 'sub2', data: desc, hasAudio: true, hasVideo: false }));
+                    socket.send(JSON.stringify({
+                        type: 'sub2',
+                        data: desc,
+                        hasAudio: true,
+                        hasVideo: false
+                    }));
                 },
                 function (error) {
                     alert('createOffer error');
@@ -252,7 +267,9 @@
             sub2.disabled = false;
             unsub2.disabled = true;
 
-            socket.send(JSON.stringify({ type: 'unsub2' }));
+            socket.send(JSON.stringify({
+                type: 'unsub2'
+            }));
             return false;
         };
     </script>

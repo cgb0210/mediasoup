@@ -169,21 +169,18 @@ function procmsg(key, data) {
 
 function notify(msg) {
     try {
-        if (msg.event == "icestatechange") {
-            if (msg.data.iceState == "connected" || msg.data.iceState == "completed") {
+        if (msg.event == "dtlsstatechange") {
+            if (msg.data.dtlsState == "connected") {
                 let data = transform[msg.targetId];
                 if (data) {
-                    if (!data.iceState) {
-                        let res = {
-                            roomiid: data.roomiid,
-                            playerid: data.playerid,
-                            streamid: data.streamid,
-                            connid: data.connid,
-                            connected: true,
-                        }
-                        ws.sendmsg("webrtc-icestate", res);
-                        data.iceState = "connected";
+                    let res = {
+                        roomiid: data.roomiid,
+                        playerid: data.playerid,
+                        streamid: data.streamid,
+                        connid: data.connid,
+                        connected: true,
                     }
+                    ws.sendmsg("webrtc-icestate", res);
                 }
             }
         }
@@ -651,8 +648,8 @@ async function pub(msg) {
     logger.info('add pub', JSON.stringify({
         roomiid: msg.roomiid,
         streamid: msg.streamid,
-        audioConsumerId: audioConsumerId,
-        videoConsumerId: videoConsumerId,
+        audioProducerId: audioProducerId,
+        videoProducerId: videoProducerId,
         transportId: transportId
     }));
 }
@@ -992,6 +989,8 @@ async function sub(msg) {
         roomiid: msg.roomiid,
         streamid: msg.streamid,
         connid: msg.connid,
+        audioProducerId: audioProducerId,
+        videoProducerId: videoProducerId,
         audioConsumerId: audioConsumerId,
         videoConsumerId: videoConsumerId,
         transportId: transportId
