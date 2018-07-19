@@ -506,6 +506,13 @@ function encodeSdp(params) {
     return sdpStr
 }
 
+function isEmptyObject(obj) {
+    for (var key in obj) {　　　　
+        return false;
+    }　　　　
+    return true;
+}
+
 const genNumber = randomNumber.generator({
     min: 10000000,
     max: 99999999,
@@ -515,3 +522,4 @@ const genNumber = randomNumber.generator({
 exports.parseSdp = parseSdp;
 exports.encodeSdp = encodeSdp;
 exports.genNumber = genNumber;
+exports.isEmptyObject = isEmptyObject;

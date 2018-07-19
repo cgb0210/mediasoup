@@ -225,6 +225,11 @@ function notify(msg) {
                     delete transform[stream.transportId];
                     clearInterval(stream.getStat);
                     delete room.streams[data.streamid];
+
+                    if (utils.isEmptyObject(room.streams)) {
+                        delete transform[room.routerId];
+                        delete rooms[data.roomiid];
+                    }
                 }
 
                 let res = {
@@ -279,6 +284,16 @@ function restart(msg) {
 }
 
 async function pub(msg) {
+    if (true) {
+        let room = rooms[msg.roomiid];
+        if (room) {
+            let stream = room.streams[msg.streamid];
+            if (stream) {
+                return
+            }
+        }
+    }
+
     let pubData = utils.parseSdp(msg.sdp);
     logger.info('pubData', JSON.stringify(pubData));
     msg.sdp = "";
@@ -655,6 +670,19 @@ async function pub(msg) {
 }
 
 async function sub(msg) {
+    if (true) {
+        let room = rooms[msg.roomiid];
+        if (room) {
+            let stream = room.streams[msg.streamid];
+            if (stream) {
+                let conn = stream.conns[msg.connid];
+                if (conn) {
+                    return
+                }
+            }
+        }
+    }
+
     let subData = utils.parseSdp(msg.sdp);
     logger.info('subData', JSON.stringify(subData));
     msg.sdp = "";
@@ -1019,6 +1047,11 @@ function unpub(msg) {
     delete transform[stream.transportId];
     clearInterval(stream.getStat);
     delete room.streams[msg.streamid];
+
+    if (utils.isEmptyObject(room.streams)) {
+        delete transform[room.routerId];
+        delete rooms[msg.roomiid];
+    }
 
     let transportIntr = {
         routerId: room.routerId,
