@@ -9,7 +9,7 @@ class Worker {
   constructor(rtcMinPort, rtcMaxPort) {
     const workerPath = '../worker/out/Release/mediasoup-worker';
     const spawnArgs = ['wdiawvur#1',
-      '--logLevel=debug',
+      '--logLevel=warn',
       '--logTag=info',
       '--logTag=ice',
       '--logTag=dtls',
