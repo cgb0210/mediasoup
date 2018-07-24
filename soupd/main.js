@@ -18,6 +18,8 @@ process.env.MEDIASOUP_CHANNEL_FD = String(CHANNEL_FD);
 let id = uuidv1();
 let rooms = {};
 let transform = {};
+let unpubs = {};
+let unsubs = {};
 
 let worker = new Worker(config.minport, config.maxport);
 let channel = new Channel(worker.child.stdio[CHANNEL_FD], notify, restart);
@@ -690,6 +692,10 @@ async function pub(msg) {
         videoProducerId: videoProducerId,
         streamTransportId: transportId
     }));
+
+    if (unpubs[reqid]){
+        unpub(msg);
+    }
 }
 
 async function sub(msg) {
@@ -1049,9 +1055,15 @@ async function sub(msg) {
         streamTransportId: streamTransportId,
         connTransportId: transportId
     }));
+
+    if (unsubs[reqid]){
+        unsub(msg);
+    }
 }
 
 function unpub(msg) {
+    let reqid = msg.streamid;
+    unpubs[reqid] = true;
     let room = rooms[msg.roomiid];
     if (!room)
         return
@@ -1083,10 +1095,13 @@ function unpub(msg) {
         routerId: room.routerId,
         transportId: stream.transportId
     }
-    channel.request("transport.close", transportIntr, {});
+    channel.request("transport.close", transportIntr, {}, reqid);
+    delete unpubs[reqid];
 }
 
 function unsub(msg) {
+    let reqid = msg.streamid + '_' + msg.connid;
+    unsubs[reqid] = true;
     let room = rooms[msg.roomiid];
     if (!room)
         return
@@ -1106,7 +1121,8 @@ function unsub(msg) {
         routerId: room.routerId,
         transportId: conn.transportId
     }
-    channel.request("transport.close", transportIntr, {});
+    channel.request("transport.close", transportIntr, {}, reqid);
+    delete unsubs[reqid];
 }
 
 function setWH(msg, w, h) {
