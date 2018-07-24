@@ -33,8 +33,7 @@ class Channel {
         switch (nsPayload[0]) {
           // 123 = '{' (a Channel JSON messsage).
           case 123:
-            this.processMessage(JSON.parse(nsPayload));
-            logger.info('<<---', nsPayload.toString());
+            this.processMessage(JSON.parse(nsPayload), nsPayload.toString());
             break;
 
             // 68 = 'D' (a debug log).
@@ -71,7 +70,7 @@ class Channel {
     });
   }
 
-  request(method, internal, data) {
+  request(method, internal, data, reqid) {
     this.id = this.id + 1;
 
     const id = this.id;
@@ -85,13 +84,15 @@ class Channel {
 
     try {
       this.socket.write(ns);
-      logger.info('--->>', ns.toString());
+      logger.info(reqid, JSON.stringify(request));
     } catch (error) {
       return Promise.reject(error);
     }
 
     return new Promise((pResolve, pReject) => {
       const sent = {
+        reqid: reqid,
+
         resolve: (data2) => {
           if (!this.pendingSent.delete(id)) {
             return;
@@ -129,13 +130,8 @@ class Channel {
     });
   }
 
-  processMessage(msg) {
+  processMessage(msg, data) {
     if (msg.id) {
-      if (msg.accepted)
-        logger.info('request succeeded id:', msg.id);
-      else
-        logger.error('request failed id & reason:', msg.id + ` ` + msg.reason);
-
       const sent = this.pendingSent.get(msg.id);
 
       if (!sent) {
@@ -143,6 +139,7 @@ class Channel {
         return;
       }
 
+      logger.info(sent.reqid, data);
       if (msg.accepted)
         sent.resolve(msg.data);
       else if (msg.rejected)

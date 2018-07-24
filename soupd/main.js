@@ -63,7 +63,22 @@ Socket.prototype.sendmsg = function (key, data) {
     var msg = key + '=' + value;
     try {
         this.instance.send(msg);
-        logger.info('send', msg);
+        var reqid = '';
+        if (data.streamid) {
+            reqid = data.streamid;
+        }
+        if (data.connid) {
+            reqid = reqid + '_' + data.connid;
+        }
+        if (key == 'on-pc-stat') {
+            if (data.streams[0].streamid) {
+                reqid = data.streams[0].streamid;
+            }
+            if (data.streams[0].connid) {
+                reqid = reqid + '_' + data.streams[0].connid;
+            }
+        }
+        logger.info(reqid, msg);
     } catch (err) {
         logger.error(err);
     }
@@ -94,15 +109,22 @@ ws.onclose = function (code, reason) {
     logger.info("onclose code & error", code + ' ' + reason);
 }
 ws.onmessage = function (data) {
-    logger.info('recv', data);
     if (typeof data == 'string') {
         var index = data.indexOf('=');
         if (index > 0 && index < data.length - 1) {
             var key = data.substring(0, index);
             var value = data.substring(index + 1);
             try {
-                var data = JSON.parse(value);
-                procmsg(key, data);
+                var msg = JSON.parse(value);
+                var reqid = '';
+                if (msg.streamid) {
+                    reqid = msg.streamid;
+                }
+                if (msg.connid) {
+                    reqid = reqid + '_' + msg.connid;
+                }
+                logger.info(reqid, data);
+                procmsg(key, msg);
             } catch (err) {
                 logger.error(err);
             }
@@ -294,8 +316,9 @@ async function pub(msg) {
         }
     }
 
-    let pubData = utils.parseSdp(msg.sdp);
-    logger.info('pubData', JSON.stringify(pubData));
+    let reqid = msg.streamid;
+    let pubData = utils.parseSdp(msg.sdp, reqid);
+    logger.info(reqid, JSON.stringify(pubData));
     msg.sdp = "";
 
     let routerId = 0;
@@ -520,9 +543,9 @@ async function pub(msg) {
     }
 
     if (needCreateRouter) {
-        await channel.request("worker.createRouter", routerIntr, {})
+        await channel.request("worker.createRouter", routerIntr, {}, reqid)
     }
-    let data = await channel.request("router.createWebRtcTransport", transportIntr, transportData)
+    let data = await channel.request("router.createWebRtcTransport", transportIntr, transportData, reqid)
     let algorithm = data.dtlsLocalParameters.fingerprints[2].algorithm;
     let value = data.dtlsLocalParameters.fingerprints[2].value;
     let ufrag = data.iceLocalParameters.usernameFragment;
@@ -587,13 +610,13 @@ async function pub(msg) {
 
     await channel.request("transport.setMaxBitrate", transportIntr, {
         bitrate: maxBitrate
-    });
-    await channel.request("transport.setRemoteDtlsParameters", transportIntr, dtlsdata);
+    }, reqid);
+    await channel.request("transport.setRemoteDtlsParameters", transportIntr, dtlsdata, reqid);
     if (hasAudio) {
-        await channel.request("router.createProducer", audioIntr, audiodata);
+        await channel.request("router.createProducer", audioIntr, audiodata, reqid);
     }
     if (hasVideo) {
-        await channel.request("router.createProducer", videoIntr, videodata);
+        await channel.request("router.createProducer", videoIntr, videodata, reqid);
     }
     let res = {
         roomiid: msg.roomiid,
@@ -607,7 +630,7 @@ async function pub(msg) {
     let start = new Date().getTime();
     let bytes = 0;
     let getStat = setInterval(() => {
-        channel.request("transport.getStats", transportIntr, {})
+        channel.request("transport.getStats", transportIntr, {}, reqid)
             .then((data) => {
                 setWH(msg, data[0].width, data[0].height);
                 let now = new Date().getTime();
@@ -643,10 +666,10 @@ async function pub(msg) {
                 }
             })
         if (hasAudio) {
-            channel.request("producer.getStats", audioIntr, {});
+            channel.request("producer.getStats", audioIntr, {}, reqid);
         }
         if (hasVideo) {
-            channel.request("producer.getStats", videoIntr, {});
+            channel.request("producer.getStats", videoIntr, {}, reqid);
         }
     }, StatInternal);
 
@@ -660,12 +683,12 @@ async function pub(msg) {
     }
     ws.sendmsg("webrtc-answer", res);
 
-    logger.info('add pub', JSON.stringify({
+    logger.info(reqid, JSON.stringify({
         roomiid: msg.roomiid,
         streamid: msg.streamid,
         audioProducerId: audioProducerId,
         videoProducerId: videoProducerId,
-        transportId: transportId
+        streamTransportId: transportId
     }));
 }
 
@@ -683,8 +706,9 @@ async function sub(msg) {
         }
     }
 
-    let subData = utils.parseSdp(msg.sdp);
-    logger.info('subData', JSON.stringify(subData));
+    let reqid = msg.streamid + '_' + msg.connid;
+    let subData = utils.parseSdp(msg.sdp, reqid);
+    logger.info(reqid, JSON.stringify(subData));
     msg.sdp = "";
 
     let transportId = 0;
@@ -692,6 +716,7 @@ async function sub(msg) {
     let videoConsumerId = 0;
 
     let routerId = rooms[msg.roomiid].routerId;
+    let streamTransportId = rooms[msg.roomiid].streams[msg.streamid].transportId;
     let audioProducerId = rooms[msg.roomiid].streams[msg.streamid].audioProducerId;
     let videoProducerId = rooms[msg.roomiid].streams[msg.streamid].videoProducerId;
     let pubData = rooms[msg.roomiid].streams[msg.streamid].pubData;
@@ -877,12 +902,12 @@ async function sub(msg) {
     }
 
     if (hasAudio) {
-        await channel.request("router.createConsumer", audioIntr, audioData);
+        await channel.request("router.createConsumer", audioIntr, audioData, reqid);
     }
     if (hasVideo) {
-        await channel.request("router.createConsumer", videoIntr, videoData);
+        await channel.request("router.createConsumer", videoIntr, videoData, reqid);
     }
-    let data = await channel.request("router.createWebRtcTransport", transportIntr, transportData);
+    let data = await channel.request("router.createWebRtcTransport", transportIntr, transportData, reqid);
     let algorithm = data.dtlsLocalParameters.fingerprints[2].algorithm;
     let value = data.dtlsLocalParameters.fingerprints[2].value;
     let ufrag = data.iceLocalParameters.usernameFragment;
@@ -933,12 +958,12 @@ async function sub(msg) {
     }
 
     let sdp = utils.encodeSdp(params);
-    await channel.request("transport.setRemoteDtlsParameters", transportIntr, dtlsdata);
+    await channel.request("transport.setRemoteDtlsParameters", transportIntr, dtlsdata, reqid);
     if (hasAudio) {
-        await channel.request("consumer.enable", audioIntr, enableaudio);
+        await channel.request("consumer.enable", audioIntr, enableaudio, reqid);
     }
     if (hasVideo) {
-        await channel.request("consumer.enable", videoIntr, enablevideo);
+        await channel.request("consumer.enable", videoIntr, enablevideo, reqid);
     }
     let res = {
         roomiid: msg.roomiid,
@@ -953,7 +978,7 @@ async function sub(msg) {
     let start = new Date().getTime();
     let bytes = 0;
     let getStat = setInterval(() => {
-        channel.request("transport.getStats", transportIntr, {})
+        channel.request("transport.getStats", transportIntr, {}, reqid)
             .then((data) => {
                 let wh = getWH(msg);
                 if (!wh) {
@@ -997,10 +1022,10 @@ async function sub(msg) {
                 }
             })
         if (hasAudio) {
-            channel.request("consumer.getStats", audioIntr, {});
+            channel.request("consumer.getStats", audioIntr, {}, reqid);
         }
         if (hasVideo) {
-            channel.request("consumer.getStats", videoIntr, {});
+            channel.request("consumer.getStats", videoIntr, {}, reqid);
         }
     }, StatInternal);
 
@@ -1013,7 +1038,7 @@ async function sub(msg) {
     }
     ws.sendmsg("webrtc-answer", res);
 
-    logger.info('add sub', JSON.stringify({
+    logger.info(reqid, JSON.stringify({
         roomiid: msg.roomiid,
         streamid: msg.streamid,
         connid: msg.connid,
@@ -1021,7 +1046,8 @@ async function sub(msg) {
         videoProducerId: videoProducerId,
         audioConsumerId: audioConsumerId,
         videoConsumerId: videoConsumerId,
-        transportId: transportId
+        streamTransportId: streamTransportId,
+        connTransportId: transportId
     }));
 }
 

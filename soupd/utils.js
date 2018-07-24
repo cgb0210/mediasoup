@@ -227,9 +227,9 @@ let sdpTemplate = {
     ]
 }
 
-function parseSdp(sdpStr) {
+function parseSdp(sdpStr, reqid) {
     let sdp = transform.parse(sdpStr);
-    logger.info(`sdp-transform`, JSON.stringify(sdp));
+    logger.info(reqid, JSON.stringify(sdp));
     let res = {
         fingerprint: {
             type: '',
