@@ -598,6 +598,7 @@ async function pub(msg) {
         maxBitrate = DefaultBitrate
     }
 
+    maxBitrate = maxBitrate * 1000;
     await channel.request("transport.setMaxBitrate", transportIntr, {
         bitrate: maxBitrate
     }, reqid);
@@ -681,7 +682,7 @@ async function pub(msg) {
         streamTransportId: transportId
     }));
 
-    if (unpubs[reqid]){
+    if (unpubs[reqid]) {
         unpub(msg);
     }
 }
@@ -1044,7 +1045,7 @@ async function sub(msg) {
         connTransportId: transportId
     }));
 
-    if (unsubs[reqid]){
+    if (unsubs[reqid]) {
         unsub(msg);
     }
 }
