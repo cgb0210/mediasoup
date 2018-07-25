@@ -10,7 +10,7 @@ const config = require(process.argv[2]);
 
 const logger = new Logger();
 const CHANNEL_FD = 3;
-const MaxBitrate = config.maxbitrate;
+const DefaultBitrate = 600;
 const StatInternal = config.statinterval;
 const StunInternal = config.stuninterval;
 process.env.MEDIASOUP_CHANNEL_FD = String(CHANNEL_FD);
@@ -593,21 +593,9 @@ async function pub(msg) {
     }
 
     let sdp = utils.encodeSdp(params);
-
-    let maxBitrate = MaxBitrate;
-    let temp = msg.maxBitrate;
-    if (temp > 0) {
-        temp = temp * 1000;
-        if (temp < maxBitrate) {
-            maxBitrate = temp;
-        }
-    }
-    temp = pubData.audio.bandWidth + pubData.video.bandWidth;
-    if (temp > 0) {
-        temp = temp * 1000;
-        if (temp < maxBitrate) {
-            maxBitrate = temp;
-        }
+    let maxBitrate = pubData.audio.bandWidth + pubData.video.bandWidth;
+    if (maxBitrate <= 0) {
+        maxBitrate = DefaultBitrate
     }
 
     await channel.request("transport.setMaxBitrate", transportIntr, {
