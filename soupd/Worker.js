@@ -6,9 +6,9 @@ const Logger = require('./Logger');
 const logger = new Logger();
 
 class Worker {
-  constructor(rtcMinPort, rtcMaxPort) {
+  constructor(wokerId, rtcMinPort, rtcMaxPort, restart) {
     const workerPath = '../worker/out/Release/mediasoup-worker';
-    const spawnArgs = ['wdiawvur#1',
+    const spawnArgs = [wokerId,
       '--logLevel=warn',
       '--logTag=info',
       '--logTag=ice',
@@ -23,6 +23,9 @@ class Worker {
       '--rtcMinPort=' + rtcMinPort,
       '--rtcMaxPort=' + rtcMaxPort,
     ]
+
+    this.wokerId = wokerId;
+    this.restart = restart;
 
     const spawnOptions = {
       detached: false,
@@ -49,6 +52,7 @@ class Worker {
 
     this.child.on('exit', (code, signal) => {
       logger.error('child process exited code & signal:', code + ' ' + signal);
+      this.restart(this.wokerId);
     });
 
     this.child.on('error', (error) => {

@@ -7,10 +7,9 @@ const logger = new Logger();
 const REQUEST_TIMEOUT = 5000;
 
 class Channel {
-  constructor(socket, notify, restart) {
+  constructor(socket, notify) {
     this.socket = socket;
     this.notify = notify;
-    this.restart = restart;
     this.pendingSent = new Map();
     this.recvBuffer = null;
     this.id = 0;
@@ -66,7 +65,6 @@ class Channel {
 
     this.socket.on('error', (error) => {
       logger.error('channel error:', error);
-      restart();
     });
   }
 
@@ -145,7 +143,7 @@ class Channel {
       else if (msg.rejected)
         sent.reject(new Error(msg.reason));
     } else if (msg.targetId && msg.event) {
-      this.notify(msg);
+      this.notify(msg, data);
     } else {
       logger.error('received message is not a Response nor a Notification');
     }

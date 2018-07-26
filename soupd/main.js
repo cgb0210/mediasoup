@@ -1,5 +1,6 @@
 'use strict';
 
+const os = require('os');
 const WebSocket = require('ws');
 const Worker = require('./Worker')
 const Channel = require('./Channel')
@@ -20,9 +21,24 @@ let rooms = {};
 let transform = {};
 let unpubs = {};
 let unsubs = {};
+let channels = {}
+let numWorkers = os.cpus().length;
 
-let worker = new Worker(config.minport, config.maxport);
-let channel = new Channel(worker.child.stdio[CHANNEL_FD], notify, restart);
+for (let i = 1; i <= numWorkers; i++) {
+    let workerId = `mediasoup-worker-${i}`
+    let numPorts = Math.floor((config.maxport - config.minport) / numWorkers);
+    let rtcMinPort = config.minport + (numPorts * (i - 1));
+    let rtcMaxPort = rtcMinPort + numPorts;
+    let worker = new Worker(workerId, rtcMinPort, rtcMaxPort, restart);
+    let channel = new Channel(worker.child.stdio[CHANNEL_FD], notify);
+    channels[workerId] = channel;
+    logger.info("mediasoup start", workerId);
+}
+
+function randomChannel() {
+    let i = Math.floor(Math.random() * numWorkers + 1)
+    return `mediasoup-worker-${i}`
+}
 
 function Socket() {
     this.reconnectInterval = 1000;
@@ -191,7 +207,29 @@ function procmsg(key, data) {
     }
 }
 
-function notify(msg) {
+function notify(msg, rawmsg) {
+    try {
+        if (msg.targetId) {
+            let data = transform[msg.targetId];
+            if (data) {
+                var reqid = '';
+                if (data.streamid) {
+                    reqid = data.streamid;
+                }
+                if (data.connid) {
+                    reqid = reqid + '_' + data.connid;
+                }
+                logger.info(reqid, rawmsg);
+            }else{
+                logger.info(rawmsg);
+            }
+        } else {
+            logger.info(rawmsg);
+        }
+    } catch (err) {
+        logger.error(err);
+    }
+
     try {
         if (msg.event == "dtlsstatechange") {
             if (msg.data.dtlsState == "connected") {
@@ -270,10 +308,12 @@ function notify(msg) {
     }
 }
 
-function restart(msg) {
+function restart(workerId) {
     for (let roomiid in rooms) {
         let room = rooms[roomiid];
         if (!room)
+            continue
+        if (room.workerId != workerId)
             continue
         for (let streamid in room.streams) {
             let stream = room.streams[streamid];
@@ -283,9 +323,12 @@ function restart(msg) {
                 let conn = stream.conns[connid];
                 if (!conn)
                     continue
+                delete transform[conn.audioConsumerId];
+                delete transform[conn.videoConsumerId];
+                delete transform[conn.transportId];
                 clearInterval(conn.getStat);
             }
-            clearInterval(stream.getStat);
+
             let data = transform[stream.transportId];
             if (data) {
                 let res = {
@@ -295,16 +338,19 @@ function restart(msg) {
                 }
                 ws.sendmsg("on-pc-close", res);
             }
+            delete transform[stream.audioProducerId];
+            delete transform[stream.videoProducerId];
+            delete transform[stream.transportId];
+            clearInterval(stream.getStat);
         }
+        delete transform[room.routerId];
+        delete rooms[roomiid];
     }
 
-    logger.info("mediasoup restart");
-
-    rooms = {};
-    transform = {};
-
-    worker = new Worker(config.minport, config.maxport);
-    channel = new Channel(worker.child.stdio[CHANNEL_FD], notify, restart);
+    let worker = new Worker(workerId, config.minport, config.maxport, restart);
+    let channel = new Channel(worker.child.stdio[CHANNEL_FD], notify);
+    channels[workerId] = channel;
+    logger.info("mediasoup restart", workerId);
 }
 
 async function pub(msg) {
@@ -335,6 +381,7 @@ async function pub(msg) {
             if (!transform[routerId]) {
                 transform[routerId] = true;
                 rooms[msg.roomiid] = {
+                    workerId: randomChannel(),
                     routerId: routerId,
                     streams: {}
                 };
@@ -369,6 +416,10 @@ async function pub(msg) {
             break
         }
     }
+
+
+    let channel = channels[rooms[msg.roomiid].workerId];
+    console.log(rooms[msg.roomiid].workerId)
 
     let routerIntr = {
         routerId: routerId
@@ -710,6 +761,7 @@ async function sub(msg) {
     let audioConsumerId = 0;
     let videoConsumerId = 0;
 
+    let channel = channels[rooms[msg.roomiid].workerId];
     let routerId = rooms[msg.roomiid].routerId;
     let streamTransportId = rooms[msg.roomiid].streams[msg.streamid].transportId;
     let audioProducerId = rooms[msg.roomiid].streams[msg.streamid].audioProducerId;
@@ -1084,6 +1136,7 @@ function unpub(msg) {
         routerId: room.routerId,
         transportId: stream.transportId
     }
+    let channel = channels[room.workerId];
     channel.request("transport.close", transportIntr, {}, reqid);
     delete unpubs[reqid];
 }
@@ -1110,6 +1163,7 @@ function unsub(msg) {
         routerId: room.routerId,
         transportId: conn.transportId
     }
+    let channel = channels[room.workerId];
     channel.request("transport.close", transportIntr, {}, reqid);
     delete unsubs[reqid];
 }
